@@ -5,6 +5,8 @@ ver 0.21 (not yet released)
   - "outputs" prints the plugin name
   - "outputset" sets runtime attributes
   - close connection when client sends HTTP request
+* player
+  - "one-shot" single mode
 * input
   - qobuz: new plugin to play Qobuz streams
   - tidal: new plugin to play Tidal streams
@@ -12,6 +14,7 @@ ver 0.21 (not yet released)
   - new tags "OriginalDate", "MUSICBRAINZ_WORKID"
 * decoder
   - gme: try loading m3u sidecar files
+  - hybrid_dsd: new decoder plugin
   - pcm: support audio/L24 (RFC 3190)
 * resampler
   - soxr: flush resampler at end of song
@@ -21,13 +24,46 @@ ver 0.21 (not yet released)
   - ao: fix crash bug due to partial frames
   - shout: support the Shine encoder plugin
   - sndio: remove support for the broken RoarAudio sndio emulation
+  - osx: initial support for DSD over PCM
 * mixer
   - sndio: new mixer plugin
+* encoder
+  - opus: support for sending metadata using ogg stream chaining
 * require GCC 5.0
 
-ver 0.20.16 (not yet released)
+ver 0.20.19 (not yet released)
+* protocol
+  - validate absolute seek time, reject negative values
+* input
+  - mms: fix lockup bug and a crash bug
+* macOS: fix crash bug
+
+ver 0.20.18 (2018/02/24)
+* input
+  - curl: allow authentication methods other than "Basic"
+* decoder
+  - flac: improve seeking precision
+* fix gapless CUE song transitions
+* Android, Windows
+  - enable the NFS storage plugin
+
+ver 0.20.17 (2018/02/11)
+* output
+  - alsa: fix crash bug with 8 channels
+* mixer
+  - alsa: fix rounding error at volume 0
+* fix real-time and idle scheduling with Musl
+* Android
+  - fix compatibility with Android 4.0
+
+ver 0.20.16 (2018/02/03)
+* output
+  - pulse: fix crash during auto-detection
 * database
   - simple: fix search within mount points
+  - upnp: enable IPv6
+* archive
+  - iso9660: libcdio 2.0 compatibility
 * fix crash in debug build on Haiku and other operating systems
 
 ver 0.20.15 (2018/01/05)

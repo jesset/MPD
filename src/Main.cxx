@@ -50,6 +50,7 @@
 #include "unix/SignalHandlers.hxx"
 #include "system/FatalError.hxx"
 #include "thread/Slack.hxx"
+#include "net/Init.hxx"
 #include "lib/icu/Init.hxx"
 #include "config/ConfigGlobal.hxx"
 #include "config/Param.hxx"
@@ -104,15 +105,6 @@
 
 #ifdef HAVE_LOCALE_H
 #include <locale.h>
-#endif
-
-#ifdef _WIN32
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
-
-#ifdef __BLOCKS__
-#include <dispatch/dispatch.h>
 #endif
 
 #include <limits.h>
@@ -284,25 +276,6 @@ glue_state_file_init()
 					     instance->partitions.front(),
 					     instance->event_loop);
 	instance->state_file->Read();
-}
-
-/**
- * Windows-only initialization of the Winsock2 library.
- */
-static void winsock_init(void)
-{
-#ifdef _WIN32
-	WSADATA sockinfo;
-
-	int retval = WSAStartup(MAKEWORD(2, 2), &sockinfo);
-	if(retval != 0)
-		FormatFatalError("Attempt to open Winsock2 failed; error code %d",
-				 retval);
-
-	if (LOBYTE(sockinfo.wVersion) != 2)
-		FatalError("We use Winsock2 but your version is either too new "
-			   "or old; please install Winsock 2.x");
-#endif
 }
 
 /**
@@ -504,7 +477,8 @@ try {
 
 	IcuInit();
 
-	winsock_init();
+	const ScopeNetInit net_init;
+
 	config_global_init();
 
 #ifdef ANDROID
@@ -558,21 +532,8 @@ try {
 	daemonize_begin(options.daemon);
 #endif
 
-#ifdef __BLOCKS__
-	/* Runs the OS X native event loop in the main thread, and runs
-	   the rest of mpd_main on a new thread. This lets CoreAudio receive
-	   route change notifications (e.g. plugging or unplugging headphones).
-	   All hardware output on OS X ultimately uses CoreAudio internally.
-	   This must be run after forking; if dispatch is called before forking,
-	   the child process will have a broken internal dispatch state. */
-	dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
-		exit(mpd_main_after_fork(config));
-	});
-	dispatch_main();
-	return EXIT_FAILURE; // unreachable, because dispatch_main never returns
-#else
 	return mpd_main_after_fork(config);
-#endif
+
 } catch (const std::exception &e) {
 	LogError(e);
 	return EXIT_FAILURE;
@@ -604,7 +565,7 @@ try {
 	command_init();
 
 	for (auto &partition : instance->partitions) {
-		partition.outputs.Configure(instance->io_thread.GetEventLoop(),
+		partition.outputs.Configure(instance->rtio_thread.GetEventLoop(),
 					    config.replay_gain,
 					    partition.pc);
 		partition.UpdateEffectiveReplayGainMode();
@@ -625,6 +586,7 @@ try {
 #endif
 
 	instance->io_thread.Start();
+	instance->rtio_thread.Start();
 
 #ifdef ENABLE_NEIGHBOR_PLUGINS
 	if (instance->neighbors != nullptr)
@@ -736,6 +698,7 @@ try {
 	archive_plugin_deinit_all();
 #endif
 	config_global_finish();
+	instance->rtio_thread.Stop();
 	instance->io_thread.Stop();
 #ifndef ANDROID
 	SignalHandlersFinish();
@@ -745,10 +708,6 @@ try {
 
 #ifdef ENABLE_DAEMON
 	daemonize_finish();
-#endif
-
-#ifdef _WIN32
-	WSACleanup();
 #endif
 
 	IcuFinish();

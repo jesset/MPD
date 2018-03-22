@@ -256,8 +256,12 @@ private:
 	bool SeekDecoder() noexcept;
 
 	void CancelPendingSeek() noexcept {
+		if (!pc.seeking)
+			return;
+
 		pending_seek = SongTime::zero();
 		pc.seeking = false;
+		pc.ClientSignal();
 	}
 
 	/**
@@ -926,6 +930,7 @@ Player::SongBorder() noexcept
 	const bool border_pause = pc.ApplyBorderPause();
 	if (border_pause) {
 		paused = true;
+		pc.listener.OnBorderPause();
 		idle_add(IDLE_PLAYER);
 	}
 }

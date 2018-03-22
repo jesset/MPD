@@ -17,25 +17,33 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef MPD_PLAYER_LISTENER_HXX
-#define MPD_PLAYER_LISTENER_HXX
+#ifndef NET_INIT_HXX
+#define NET_INIT_HXX
 
-class PlayerListener {
+#include "check.h"
+#include "SocketError.hxx"
+
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
+
+class ScopeNetInit {
+#ifdef _WIN32
 public:
-	/**
-	 * Must call playlist_sync().
-	 */
-	virtual void OnPlayerSync() noexcept = 0;
+	ScopeNetInit() {
+		WSADATA sockinfo;
+		int retval = WSAStartup(MAKEWORD(2, 2), &sockinfo);
+		if (retval != 0)
+			throw MakeSocketError(retval, "WSAStartup() failed");
+	}
 
-	/**
-	 * The current song's tag has changed.
-	 */
-	virtual void OnPlayerTagModified() noexcept = 0;
-
-	/**
-	 * Playback went into border pause.
-	 */
-	virtual void OnBorderPause() noexcept = 0;
+	~ScopeNetInit() noexcept {
+		WSACleanup();
+	}
+#else
+public:
+	ScopeNetInit() {}
+#endif
 };
 
 #endif

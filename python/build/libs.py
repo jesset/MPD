@@ -1,4 +1,6 @@
 import re
+from os.path import abspath
+
 from build.project import Project
 from build.zlib import ZlibProject
 from build.autotools import AutotoolsProject
@@ -21,6 +23,11 @@ libvorbis = AutotoolsProject(
     [
         '--disable-shared', '--enable-static',
     ],
+
+    edits={
+        # this option is not understood by clang
+        'configure': lambda data: data.replace('-mno-ieee-fp', ' '),
+    }
 )
 
 opus = AutotoolsProject(
@@ -98,8 +105,8 @@ liblame = AutotoolsProject(
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-3.4.1.tar.xz',
-    '5a77278a63741efa74e26bf197b9bb09ac6381b9757391b922407210f0f991c0',
+    'http://ffmpeg.org/releases/ffmpeg-3.4.2.tar.xz',
+    '2b92e9578ef8b3e49eeab229e69305f5f4cbc1fdaa22e927fc7fca18acccd740',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -122,7 +129,6 @@ ffmpeg = FfmpegProject(
         '--disable-protocols',
         '--disable-devices',
         '--disable-filters',
-        '--disable-filters',
         '--disable-v4l2_m2m',
 
         '--disable-parser=bmp',
@@ -140,7 +146,6 @@ ffmpeg = FfmpegProject(
         '--disable-parser=mjpeg',
         '--disable-parser=mlp',
         '--disable-parser=mpeg4video',
-        '--disable-parser=mpegaudio',
         '--disable-parser=mpegvideo',
         '--disable-parser=opus',
         '--disable-parser=vc1',
@@ -192,16 +197,6 @@ ffmpeg = FfmpegProject(
         # we don't need these decoders, because we have the dedicated
         # libraries
         '--disable-decoder=flac',
-        '--disable-decoder=mp1',
-        '--disable-decoder=mp1float',
-        '--disable-decoder=mp2',
-        '--disable-decoder=mp2float',
-        '--disable-decoder=mp3',
-        '--disable-decoder=mp3adu',
-        '--disable-decoder=mp3adufloat',
-        '--disable-decoder=mp3float',
-        '--disable-decoder=mp3on4',
-        '--disable-decoder=mp3on4float',
         '--disable-decoder=opus',
         '--disable-decoder=vorbis',
 
@@ -315,7 +310,7 @@ ffmpeg = FfmpegProject(
         '--disable-decoder=svq1',
         '--disable-decoder=svq3',
         '--disable-decoder=tiff',
-        '--disable-decoder=mottiertexseqvideo',
+        '--disable-decoder=tiertexseqvideo',
         '--disable-decoder=truemotion1',
         '--disable-decoder=truemotion2',
         '--disable-decoder=truemotion2rt',
@@ -339,8 +334,8 @@ ffmpeg = FfmpegProject(
 )
 
 curl = AutotoolsProject(
-    'http://curl.haxx.se/download/curl-7.57.0.tar.xz',
-    'f5f6fd3c72b7b8389969f4fb671ed8532fa9b5bb7a5cae7ca89bc1cea45c7878',
+    'http://curl.haxx.se/download/curl-7.59.0.tar.xz',
+    'e44eaabdf916407585bf5c7939ff1161e6242b6b015d3f2f5b758b2a330461fc',
     'lib/libcurl.a',
     [
         '--disable-shared', '--enable-static',
@@ -358,6 +353,23 @@ curl = AutotoolsProject(
         '--disable-crypto-auth', '--disable-ntlm-wb', '--disable-tls-srp', '--disable-cookies',
         '--without-ssl', '--without-gnutls', '--without-nss', '--without-libssh2',
     ],
+
+    patches='src/lib/curl/patches',
+)
+
+libnfs = AutotoolsProject(
+    'https://github.com/sahlberg/libnfs/archive/libnfs-2.0.0.tar.gz',
+    '7ea6cd8fa6c461d01091e584d424d28e137d23ff4b65b95d01a3fd0ef95d120e',
+    'lib/libnfs.a',
+    [
+        '--disable-shared', '--enable-static',
+        '--disable-debug',
+
+        # work around -Wtautological-compare
+        '--disable-werror',
+    ],
+    base='libnfs-libnfs-2.0.0',
+    autoreconf=True,
 )
 
 boost = BoostProject(

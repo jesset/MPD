@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,19 +17,30 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef FAKE_DECODER_API_HXX
-#define FAKE_DECODER_API_HXX
+#ifndef DUMP_DECODER_CLIENT_HXX
+#define DUMP_DECODER_CLIENT_HXX
 
 #include "check.h"
 #include "decoder/Client.hxx"
 #include "thread/Mutex.hxx"
 #include "thread/Cond.hxx"
 
-struct FakeDecoder final : DecoderClient {
+/**
+ * A #DecoderClient implementation which dumps metadata to stderr and
+ * decoded data to stdout.
+ */
+class DumpDecoderClient final : public DecoderClient {
+	bool initialized = false;
+
+	uint16_t prev_kbit_rate = 0;
+
+public:
 	Mutex mutex;
 	Cond cond;
 
-	bool initialized = false;
+	bool IsInitialized() const noexcept {
+		return initialized;
+	}
 
 	/* virtual methods from DecoderClient */
 	void Ready(AudioFormat audio_format,

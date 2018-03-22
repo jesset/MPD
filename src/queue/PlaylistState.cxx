@@ -26,6 +26,7 @@
 #include "PlaylistState.hxx"
 #include "PlaylistError.hxx"
 #include "Playlist.hxx"
+#include "SingleMode.hxx"
 #include "queue/QueueSave.hxx"
 #include "fs/io/TextFile.hxx"
 #include "fs/io/BufferedOutputStream.hxx"
@@ -35,6 +36,7 @@
 #include "util/CharUtil.hxx"
 #include "util/StringAPI.hxx"
 #include "util/StringCompare.hxx"
+#include "util/NumberParser.hxx"
 #include "Log.hxx"
 
 #include <string.h>
@@ -87,7 +89,8 @@ playlist_state_save(BufferedOutputStream &os, const struct playlist &playlist,
 
 	os.Format(PLAYLIST_STATE_FILE_RANDOM "%i\n", playlist.queue.random);
 	os.Format(PLAYLIST_STATE_FILE_REPEAT "%i\n", playlist.queue.repeat);
-	os.Format(PLAYLIST_STATE_FILE_SINGLE "%i\n", playlist.queue.single);
+	os.Format(PLAYLIST_STATE_FILE_SINGLE "%i\n",
+			  (int)playlist.queue.single);
 	os.Format(PLAYLIST_STATE_FILE_CONSUME "%i\n", playlist.queue.consume);
 	os.Format(PLAYLIST_STATE_FILE_CROSSFADE "%i\n",
 		  (int)pc.GetCrossFade());
@@ -148,22 +151,22 @@ playlist_state_restore(const char *line, TextFile &file,
 	while ((line = file.ReadLine()) != nullptr) {
 		const char *p;
 		if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_TIME))) {
-			seek_time = SongTime::FromS(atof(p));
+			seek_time = SongTime::FromS(ParseDouble(p));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_REPEAT))) {
 			playlist.SetRepeat(pc, StringIsEqual(p, "1"));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_SINGLE))) {
-			playlist.SetSingle(pc, StringIsEqual(p, "1"));
+			playlist.SetSingle(pc, SingleFromString(p));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_CONSUME))) {
 			playlist.SetConsume(StringIsEqual(p, "1"));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_CROSSFADE))) {
 			pc.SetCrossFade(atoi(p));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_MIXRAMPDB))) {
-			pc.SetMixRampDb(atof(p));
+			pc.SetMixRampDb(ParseFloat(p));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_MIXRAMPDELAY))) {
 			/* this check discards "nan" which was used
 			   prior to MPD 0.18 */
 			if (IsDigitASCII(*p))
-				pc.SetMixRampDelay(atof(p));
+				pc.SetMixRampDelay(ParseFloat(p));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_RANDOM))) {
 			random_mode = StringIsEqual(p, "1");
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_STATE_FILE_CURRENT))) {
@@ -232,9 +235,10 @@ playlist_state_get_hash(const playlist &playlist,
 		 : 0) ^
 		((int)pc.GetCrossFade() << 20) ^
 		(unsigned(player_status.state) << 24) ^
+		/* note that this takes 2 bits */
+		((int)playlist.queue.single << 25) ^
 		(playlist.queue.random << 27) ^
 		(playlist.queue.repeat << 28) ^
-		(playlist.queue.single << 29) ^
 		(playlist.queue.consume << 30) ^
 		(playlist.queue.random << 31);
 }

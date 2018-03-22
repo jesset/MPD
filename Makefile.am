@@ -527,6 +527,7 @@ libthread_a_SOURCES = \
 
 libnet_a_SOURCES = \
 	src/net/Features.hxx \
+	src/net/Init.hxx \
 	src/net/ToString.cxx src/net/ToString.hxx \
 	src/net/Resolver.cxx src/net/Resolver.hxx \
 	src/net/StaticSocketAddress.cxx src/net/StaticSocketAddress.hxx \
@@ -946,6 +947,7 @@ endif
 libbasic_a_SOURCES = \
 	src/ReplayGainConfig.hxx \
 	src/ReplayGainMode.cxx src/ReplayGainMode.hxx \
+	src/SingleMode.cxx src/SingleMode.hxx \
 	src/ReplayGainInfo.cxx src/ReplayGainInfo.hxx
 
 # configuration library
@@ -1078,114 +1080,116 @@ DECODER_LIBS = \
 
 if ENABLE_DSD
 DSD_CFLAGS = \
-  -I$(srcdir)/src/lib/sacdiso/libdstdec/binding \
-  -I$(srcdir)/src/lib/sacdiso/libdstdec/decoder \
-  -I$(srcdir)/src/lib/sacdiso/libdstdec \
-  -I$(srcdir)/src/lib/sacdiso
+	-I$(srcdir)/src/lib/sacdiso/libdstdec/binding \
+	-I$(srcdir)/src/lib/sacdiso/libdstdec/decoder \
+	-I$(srcdir)/src/lib/sacdiso/libdstdec \
+	-I$(srcdir)/src/lib/sacdiso
 libdecoder_a_SOURCES += \
-  src/lib/sacdiso/libdstdec/binding/dst_decoder_mpd.h \
-  src/lib/sacdiso/libdstdec/binding/dst_decoder_mpd.cpp \
-  src/lib/sacdiso/libdstdec/decoder/DSTDecoder.h \
-  src/lib/sacdiso/libdstdec/decoder/DSTDecoder.cpp \
-  src/lib/sacdiso/libdstdec/ACData.h \
-  src/lib/sacdiso/libdstdec/ACData.cpp \
-  src/lib/sacdiso/libdstdec/CodedTable.h \
-  src/lib/sacdiso/libdstdec/CodedTable.cpp \
-  src/lib/sacdiso/libdstdec/DSTConsts.h \
-  src/lib/sacdiso/libdstdec/DSTDefs.h \
-  src/lib/sacdiso/libdstdec/DSTFramework.h \
-  src/lib/sacdiso/libdstdec/DSTFramework.cpp \
-  src/lib/sacdiso/libdstdec/FrameReader.h \
-  src/lib/sacdiso/libdstdec/FrameReader.cpp \
-  src/lib/sacdiso/libdstdec/StrData.h \
-  src/lib/sacdiso/libdstdec/StrData.cpp \
-  src/lib/sacdiso/endianess.h \
-  src/lib/sacdiso/sacd_disc.h \
-  src/lib/sacdiso/sacd_disc.cpp \
-  src/lib/sacdiso/sacd_dsd.h \
-  src/lib/sacdiso/sacd_dsdiff.h \
-  src/lib/sacdiso/sacd_dsdiff.cpp \
-  src/lib/sacdiso/sacd_media.h \
-  src/lib/sacdiso/sacd_media.cpp \
-  src/lib/sacdiso/sacd_metabase.h \
-  src/lib/sacdiso/sacd_metabase.cpp \
-  src/lib/sacdiso/sacd_reader.h \
-  src/lib/sacdiso/scarletbook.h \
-  src/lib/sacdiso/scarletbook.cpp \
-  src/decoder/plugins/DffDecoderPlugin.cxx \
-  src/decoder/plugins/DffDecoderPlugin.hxx \
-  src/decoder/plugins/DsfDecoderPlugin.cxx \
-  src/decoder/plugins/DsfDecoderPlugin.hxx \
-  src/decoder/plugins/DsdLib.cxx \
+	src/lib/sacdiso/libdstdec/binding/dst_decoder_mpd.h \
+	src/lib/sacdiso/libdstdec/binding/dst_decoder_mpd.cpp \
+	src/lib/sacdiso/libdstdec/decoder/DSTDecoder.h \
+	src/lib/sacdiso/libdstdec/decoder/DSTDecoder.cpp \
+	src/lib/sacdiso/libdstdec/ACData.h \
+	src/lib/sacdiso/libdstdec/ACData.cpp \
+	src/lib/sacdiso/libdstdec/CodedTable.h \
+	src/lib/sacdiso/libdstdec/CodedTable.cpp \
+	src/lib/sacdiso/libdstdec/DSTConsts.h \
+	src/lib/sacdiso/libdstdec/DSTDefs.h \
+	src/lib/sacdiso/libdstdec/DSTFramework.h \
+	src/lib/sacdiso/libdstdec/DSTFramework.cpp \
+	src/lib/sacdiso/libdstdec/FrameReader.h \
+	src/lib/sacdiso/libdstdec/FrameReader.cpp \
+	src/lib/sacdiso/libdstdec/StrData.h \
+	src/lib/sacdiso/libdstdec/StrData.cpp \
+	src/lib/sacdiso/endianess.h \
+	src/lib/sacdiso/sacd_disc.h \
+	src/lib/sacdiso/sacd_disc.cpp \
+	src/lib/sacdiso/sacd_dsd.h \
+	src/lib/sacdiso/sacd_dsdiff.h \
+	src/lib/sacdiso/sacd_dsdiff.cpp \
+	src/lib/sacdiso/sacd_media.h \
+	src/lib/sacdiso/sacd_media.cpp \
+	src/lib/sacdiso/sacd_metabase.h \
+	src/lib/sacdiso/sacd_metabase.cpp \
+	src/lib/sacdiso/sacd_reader.h \
+	src/lib/sacdiso/scarletbook.h \
+	src/lib/sacdiso/scarletbook.cpp \
+	src/decoder/plugins/HybridDsdDecoderPlugin.cxx \
+	src/decoder/plugins/HybridDsdDecoderPlugin.hxx \
+	src/decoder/plugins/DffDecoderPlugin.cxx \
+	src/decoder/plugins/DffDecoderPlugin.hxx \
+	src/decoder/plugins/DsfDecoderPlugin.cxx \
+	src/decoder/plugins/DsfDecoderPlugin.hxx \
+	src/decoder/plugins/DsdLib.cxx \
 	src/decoder/plugins/DsdLib.hxx
 endif
 
 if ENABLE_SACDISO
 libdecoder_a_SOURCES += \
-  src/decoder/plugins/SacdIsoDecoderPlugin.cxx \
-  src/decoder/plugins/SacdIsoDecoderPlugin.hxx
+	src/decoder/plugins/SacdIsoDecoderPlugin.cxx \
+	src/decoder/plugins/SacdIsoDecoderPlugin.hxx
 endif
 
 if ENABLE_DVDAISO
 DVDAISO_CFLAGS = \
-  -I$(srcdir)/src/lib/dvdaiso/libmlpdec \
-  -I$(srcdir)/src/lib/dvdaiso/libmlpdec/libavcodec \
-  -I$(srcdir)/src/lib/dvdaiso/libmlpdec/libavuitl \
-  -I$(srcdir)/src/lib/dvdaiso/libudf \
-  -I$(srcdir)/src/lib/dvdaiso
+	-I$(srcdir)/src/lib/dvdaiso/libmlpdec \
+	-I$(srcdir)/src/lib/dvdaiso/libmlpdec/libavcodec \
+	-I$(srcdir)/src/lib/dvdaiso/libmlpdec/libavuitl \
+	-I$(srcdir)/src/lib/dvdaiso/libudf \
+	-I$(srcdir)/src/lib/dvdaiso
 libdecoder_a_SOURCES += \
-  src/lib/dvdaiso/libmlpdec/libavutil/crc.h \
-  src/lib/dvdaiso/libmlpdec/libavutil/intreadwrite.h \
-  src/lib/dvdaiso/libmlpdec/avcodec.h \
-  src/lib/dvdaiso/libmlpdec/bitstream.h \
-  src/lib/dvdaiso/libmlpdec/bswap.h \
-  src/lib/dvdaiso/libmlpdec/dsputil.h \
-  src/lib/dvdaiso/libmlpdec/get_bits.h \
-  src/lib/dvdaiso/libmlpdec/intreadwrite.h \
-  src/lib/dvdaiso/libmlpdec/mlp.h \
-  src/lib/dvdaiso/libmlpdec/mlp.c \
-  src/lib/dvdaiso/libmlpdec/mlpdec.c \
-  src/lib/dvdaiso/libmlpdec/MlpDecoder.h \
-  src/lib/dvdaiso/libmlpdec/mlpdsp.c \
-  src/lib/dvdaiso/libmlpdec/mlp_parser.h \
-  src/lib/dvdaiso/libmlpdec/mlp_parser.c \
-  src/lib/dvdaiso/libmlpdec/mlp_util.h \
-  src/lib/dvdaiso/libmlpdec/mlp_util.c \
-  src/lib/dvdaiso/libmlpdec/parser.h \
-  src/lib/dvdaiso/libudf/dvd_input.h \
-  src/lib/dvdaiso/libudf/dvd_input.cpp \
-  src/lib/dvdaiso/libudf/dvd_reader.h \
-  src/lib/dvdaiso/libudf/dvd_reader.cpp \
-  src/lib/dvdaiso/libudf/dvd_udf.h \
-  src/lib/dvdaiso/libudf/dvd_udf.c \
-  src/lib/dvdaiso/audio_stream.h \
-  src/lib/dvdaiso/audio_stream.cpp \
-  src/lib/dvdaiso/audio_stream_info.h \
-  src/lib/dvdaiso/audio_stream_info.cpp \
-  src/lib/dvdaiso/audio_track.h \
-  src/lib/dvdaiso/audio_track.cpp \
-  src/lib/dvdaiso/b2n.h \
-  src/lib/dvdaiso/dvda_block.h \
-  src/lib/dvdaiso/dvda_block.cpp \
-  src/lib/dvdaiso/dvda_disc.h \
-  src/lib/dvdaiso/dvda_disc.cpp \
-  src/lib/dvdaiso/dvda_error.h \
-  src/lib/dvdaiso/dvda_filesystem.h \
-  src/lib/dvdaiso/dvda_filesystem.cpp \
-  src/lib/dvdaiso/dvda_media.h \
-  src/lib/dvdaiso/dvda_media.cpp \
-  src/lib/dvdaiso/dvda_metabase.h \
-  src/lib/dvdaiso/dvda_metabase.cpp \
-  src/lib/dvdaiso/dvda_readed.h \
-  src/lib/dvdaiso/dvda_zone.h \
-  src/lib/dvdaiso/dvda_zone.cpp \
-  src/lib/dvdaiso/dvdaerror.h \
-  src/lib/dvdaiso/ifo.h \
-  src/lib/dvdaiso/log_trunk.h \
-  src/lib/dvdaiso/log_trunk.cpp \
-  src/lib/dvdaiso/stream_buffer.h \
-  src/decoder/plugins/DvdaIsoDecoderPlugin.cxx \
-  src/decoder/plugins/DvdaIsoDecoderPlugin.hxx
+	src/lib/dvdaiso/libmlpdec/libavutil/crc.h \
+	src/lib/dvdaiso/libmlpdec/libavutil/intreadwrite.h \
+	src/lib/dvdaiso/libmlpdec/avcodec.h \
+	src/lib/dvdaiso/libmlpdec/bitstream.h \
+	src/lib/dvdaiso/libmlpdec/bswap.h \
+	src/lib/dvdaiso/libmlpdec/dsputil.h \
+	src/lib/dvdaiso/libmlpdec/get_bits.h \
+	src/lib/dvdaiso/libmlpdec/intreadwrite.h \
+	src/lib/dvdaiso/libmlpdec/mlp.h \
+	src/lib/dvdaiso/libmlpdec/mlp.c \
+	src/lib/dvdaiso/libmlpdec/mlpdec.c \
+	src/lib/dvdaiso/libmlpdec/MlpDecoder.h \
+	src/lib/dvdaiso/libmlpdec/mlpdsp.c \
+	src/lib/dvdaiso/libmlpdec/mlp_parser.h \
+	src/lib/dvdaiso/libmlpdec/mlp_parser.c \
+	src/lib/dvdaiso/libmlpdec/mlp_util.h \
+	src/lib/dvdaiso/libmlpdec/mlp_util.c \
+	src/lib/dvdaiso/libmlpdec/parser.h \
+	src/lib/dvdaiso/libudf/dvd_input.h \
+	src/lib/dvdaiso/libudf/dvd_input.cpp \
+	src/lib/dvdaiso/libudf/dvd_reader.h \
+	src/lib/dvdaiso/libudf/dvd_reader.cpp \
+	src/lib/dvdaiso/libudf/dvd_udf.h \
+	src/lib/dvdaiso/libudf/dvd_udf.c \
+	src/lib/dvdaiso/audio_stream.h \
+	src/lib/dvdaiso/audio_stream.cpp \
+	src/lib/dvdaiso/audio_stream_info.h \
+	src/lib/dvdaiso/audio_stream_info.cpp \
+	src/lib/dvdaiso/audio_track.h \
+	src/lib/dvdaiso/audio_track.cpp \
+	src/lib/dvdaiso/b2n.h \
+	src/lib/dvdaiso/dvda_block.h \
+	src/lib/dvdaiso/dvda_block.cpp \
+	src/lib/dvdaiso/dvda_disc.h \
+	src/lib/dvdaiso/dvda_disc.cpp \
+	src/lib/dvdaiso/dvda_error.h \
+	src/lib/dvdaiso/dvda_filesystem.h \
+	src/lib/dvdaiso/dvda_filesystem.cpp \
+	src/lib/dvdaiso/dvda_media.h \
+	src/lib/dvdaiso/dvda_media.cpp \
+	src/lib/dvdaiso/dvda_metabase.h \
+	src/lib/dvdaiso/dvda_metabase.cpp \
+	src/lib/dvdaiso/dvda_readed.h \
+	src/lib/dvdaiso/dvda_zone.h \
+	src/lib/dvdaiso/dvda_zone.cpp \
+	src/lib/dvdaiso/dvdaerror.h \
+	src/lib/dvdaiso/ifo.h \
+	src/lib/dvdaiso/log_trunk.h \
+	src/lib/dvdaiso/log_trunk.cpp \
+	src/lib/dvdaiso/stream_buffer.h \
+	src/decoder/plugins/DvdaIsoDecoderPlugin.cxx \
+	src/decoder/plugins/DvdaIsoDecoderPlugin.hxx
 endif
 
 if ENABLE_MAD
@@ -2134,7 +2138,6 @@ test_dump_playlist_LDADD = \
 	libutil.a \
 	libpcm.a
 test_dump_playlist_SOURCES = test/dump_playlist.cxx \
-	test/FakeDecoderAPI.cxx test/FakeDecoderAPI.hxx \
 	src/Log.cxx src/LogBackend.cxx \
 	src/TagSave.cxx \
 	src/TagFile.cxx \
@@ -2161,7 +2164,7 @@ test_run_decoder_LDADD = \
 	libsystem.a \
 	libutil.a
 test_run_decoder_SOURCES = test/run_decoder.cxx \
-	test/FakeDecoderAPI.cxx test/FakeDecoderAPI.hxx \
+	test/DumpDecoderClient.cxx test/DumpDecoderClient.hxx \
 	src/DetachedSong.cxx \
 	src/Log.cxx src/LogBackend.cxx \
 	src/ReplayGainInfo.cxx
@@ -2181,7 +2184,6 @@ test_read_tags_LDADD = \
 	libsystem.a \
 	libutil.a
 test_read_tags_SOURCES = test/read_tags.cxx \
-	test/FakeDecoderAPI.cxx test/FakeDecoderAPI.hxx \
 	src/DetachedSong.cxx \
 	src/Log.cxx src/LogBackend.cxx \
 	src/ReplayGainInfo.cxx

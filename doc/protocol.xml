@@ -464,8 +464,8 @@
               <listitem>
                <para>
                 <varname>single</varname>:
-                <footnote id="since_0_15"><simpara>Introduced with <application>MPD</application> 0.15</simpara></footnote>
-                <returnvalue>0 or 1</returnvalue>
+                <footnote id="since_0_15"><simpara>Introduced with <application>MPD</application> 0.15 (oneshot introduced with 0.20)</simpara></footnote>
+                <returnvalue>0, 1, or oneshot</returnvalue>
                </para>
               </listitem>
               <listitem>
@@ -1626,14 +1626,20 @@ OK
           <listitem>
             <para>
               Counts the number of songs and their total playtime in
-              the db matching <varname>TAG</varname> exactly.
+              the db matching <varname>TAG</varname> exactly. The
+              following prints the number of songs whose title matches
+              "Echoes":
             </para>
+            <programlisting>count title Echoes</programlisting>
             <para>
               The <parameter>group</parameter> keyword may be used to
-              group the results by a tag.  The following prints
-              per-artist counts:
+              group the results by a tag.  The first following example
+              prints per-artist counts while the next prints the
+              number of songs whose title matches "Echoes" grouped by
+              artist:
             </para>
             <programlisting>count group artist</programlisting>
+            <programlisting>count title Echoes group artist</programlisting>
           </listitem>
         </varlistentry>
 
@@ -1651,7 +1657,10 @@ OK
           <listitem>
             <para>
               Finds songs in the db that are exactly
-              <varname>WHAT</varname>.  <varname>TYPE</varname> can
+              <varname>WHAT</varname>.
+            </para>
+            <para>
+              <varname>TYPE</varname> can
               be any tag supported by <application>MPD</application>, or one of the special
               parameters:
             </para>
@@ -1683,6 +1692,14 @@ OK
                   <parameter>modified-since</parameter> compares the
                   file's time stamp with the given value (ISO 8601 or
                   UNIX time stamp)
+                </para>
+              </listitem>
+
+              <listitem>
+                <para>
+                  <parameter>albumartist</parameter> looks for
+                  <varname>WHAT</varname> in AlbumArtist and falls back to
+                  Artist tags if AlbumArtist does not exist.
                 </para>
               </listitem>
             </itemizedlist>

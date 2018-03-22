@@ -26,8 +26,12 @@
 #include "plugins/PcmDecoderPlugin.hxx"
 #include "plugins/DffDecoderPlugin.hxx"
 #include "plugins/DsfDecoderPlugin.hxx"
+<<<<<<< HEAD
 #include "plugins/SacdIsoDecoderPlugin.hxx"
 #include "plugins/DvdaIsoDecoderPlugin.hxx"
+=======
+#include "plugins/HybridDsdDecoderPlugin.hxx"
+>>>>>>> 6edc8341430298bbddda07c44df3ff5a532fffeb
 #include "plugins/FlacDecoderPlugin.h"
 #include "plugins/OpusDecoderPlugin.h"
 #include "plugins/VorbisDecoderPlugin.h"
@@ -75,6 +79,7 @@ const struct DecoderPlugin *const decoder_plugins[] = {
 #ifdef ENABLE_DSD
 	&dff_decoder_plugin,
 	&dsf_decoder_plugin,
+	&hybrid_dsd_decoder_plugin,
 #endif
 #ifdef ENABLE_FAAD
 	&faad_decoder_plugin,
