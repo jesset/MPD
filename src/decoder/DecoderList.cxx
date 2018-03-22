@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,12 +26,9 @@
 #include "plugins/PcmDecoderPlugin.hxx"
 #include "plugins/DffDecoderPlugin.hxx"
 #include "plugins/DsfDecoderPlugin.hxx"
-<<<<<<< HEAD
 #include "plugins/SacdIsoDecoderPlugin.hxx"
 #include "plugins/DvdaIsoDecoderPlugin.hxx"
-=======
 #include "plugins/HybridDsdDecoderPlugin.hxx"
->>>>>>> 6edc8341430298bbddda07c44df3ff5a532fffeb
 #include "plugins/FlacDecoderPlugin.h"
 #include "plugins/OpusDecoderPlugin.h"
 #include "plugins/VorbisDecoderPlugin.h"
