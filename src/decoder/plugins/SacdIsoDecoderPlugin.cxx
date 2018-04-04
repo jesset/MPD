@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003-2017 The Music Player Daemon Project
+ * Copyright (C) 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -62,6 +62,7 @@ static bool      param_lsbitfirst;
 static area_id_e param_playable_area;
 static string    param_tags_path;
 static bool      param_tags_with_iso;
+static bool      param_use_stdio;
 
 static string           sacd_uri;
 static sacd_media_t*    sacd_media    = nullptr;
@@ -135,9 +136,14 @@ sacdiso_update_toc(const char* path) {
 		sacd_metabase = nullptr;
 	}
 	if (path != nullptr) {
-		sacd_media = new sacd_media_stream_t();
+		if (param_use_stdio) {
+			sacd_media = new sacd_media_file_t();
+		}
+		else {
+			sacd_media = new sacd_media_stream_t();
+		}
 		if (!sacd_media) {
-			LogError(sacdiso_domain, "new sacd_media_file_t() failed");
+			LogError(sacdiso_domain, "new sacd_media_t() failed");
 			sacd_uri.clear();
 			return false;
 		}
@@ -202,6 +208,7 @@ sacdiso_init(const ConfigBlock& block) {
 	}
 	param_tags_path = block.GetBlockValue("tags_path", "");
 	param_tags_with_iso = block.GetBlockValue("tags_with_iso", false);
+	param_use_stdio = block.GetBlockValue("use_stdio", false);
 	return true;
 }
 

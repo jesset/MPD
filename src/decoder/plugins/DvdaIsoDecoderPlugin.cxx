@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2003-2017 The Music Player Daemon Project
+ * Copyright (C) 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -60,6 +60,7 @@ static bool     param_no_short_tracks;
 static chmode_t param_playable_area;
 static string   param_tags_path;
 static bool     param_tags_with_iso;
+static bool     param_use_stdio;
 
 static string           dvda_uri;
 static dvda_media_t*    dvda_media    = nullptr;
@@ -132,9 +133,14 @@ dvdaiso_update_ifo(const char* path) {
 		dvda_metabase = nullptr;
 	}
 	if (path != nullptr) {
-		dvda_media = new dvda_media_stream_t();
+		if (param_use_stdio) {
+			dvda_media = new dvda_media_file_t();
+		}
+		else {
+			dvda_media = new dvda_media_stream_t();
+		}
 		if (!dvda_media) {
-			LogError(dvdaiso_domain, "new dvda_media_file_t() failed");
+			LogError(dvdaiso_domain, "new dvda_media_t() failed");
 			dvda_uri.clear();
 			return false;
 		}
@@ -199,6 +205,7 @@ dvdaiso_init(const ConfigBlock& block) {
 	}
 	param_tags_path = block.GetBlockValue("tags_path", "");
 	param_tags_with_iso = block.GetBlockValue("tags_with_iso", false);
+	param_use_stdio = block.GetBlockValue("use_stdio", false);
 	return true;
 }
 
