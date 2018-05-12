@@ -427,6 +427,7 @@ static const char* const sacdiso_suffixes[] = {
 static const char* const sacdiso_mime_types[] = {
 	"application/x-dat",
 	"application/x-iso",
+	"audio/x-dsd",
 	nullptr
 };
 
