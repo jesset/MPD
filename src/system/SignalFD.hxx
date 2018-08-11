@@ -35,14 +35,15 @@ public:
 	/**
 	 * Create the signalfd or update its mask.
 	 *
-	 * All errors are fatal.
+	 * Throws on error.
 	 */
 	void Create(const sigset_t &mask);
-	void Close() {
+
+	void Close() noexcept {
 		fd.Close();
 	}
 
-	int Get() const {
+	int Get() const noexcept {
 		return fd.Get();
 	}
 
@@ -51,7 +52,7 @@ public:
 	 * signal number on success or -1 if there are no more
 	 * signals.
 	 */
-	int Read();
+	int Read() noexcept;
 };
 
 #endif

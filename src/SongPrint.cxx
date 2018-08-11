@@ -19,11 +19,11 @@
 
 #include "config.h"
 #include "SongPrint.hxx"
-#include "db/LightSong.hxx"
+#include "song/LightSong.hxx"
 #include "Partition.hxx"
 #include "Instance.hxx"
 #include "storage/StorageInterface.hxx"
-#include "DetachedSong.hxx"
+#include "song/DetachedSong.hxx"
 #include "TimePrint.hxx"
 #include "TagPrint.hxx"
 #include "client/Response.hxx"
@@ -92,7 +92,10 @@ song_print_info(Response &r, const LightSong &song, bool base) noexcept
 	if (!IsNegative(song.mtime))
 		time_print(r, "Last-Modified", song.mtime);
 
-	tag_print(r, *song.tag);
+	if (song.audio_format.IsDefined())
+		r.Format("Format: %s\n", ToString(song.audio_format).c_str());
+
+	tag_print(r, song.tag);
 }
 
 void

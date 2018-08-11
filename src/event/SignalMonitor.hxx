@@ -32,6 +32,8 @@ typedef BoundMethod<void()> SignalHandler;
 
 /**
  * Initialise the signal monitor subsystem.
+ *
+ * Throws on error.
  */
 void
 SignalMonitorInit(EventLoop &loop);
@@ -40,7 +42,7 @@ SignalMonitorInit(EventLoop &loop);
  * Deinitialise the signal monitor subsystem.
  */
 void
-SignalMonitorFinish();
+SignalMonitorFinish() noexcept;
 
 /**
  * Register a handler for the specified signal.  The handler will be
@@ -57,7 +59,7 @@ SignalMonitorInit(EventLoop &)
 }
 
 static inline void
-SignalMonitorFinish()
+SignalMonitorFinish() noexcept
 {
 }
 

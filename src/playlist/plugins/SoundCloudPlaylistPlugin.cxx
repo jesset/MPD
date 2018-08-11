@@ -27,6 +27,7 @@
 #include "config/Block.hxx"
 #include "input/InputStream.hxx"
 #include "tag/Builder.hxx"
+#include "util/ASCII.hxx"
 #include "util/StringCompare.hxx"
 #include "util/Alloc.hxx"
 #include "util/Domain.hxx"
@@ -69,7 +70,7 @@ soundcloud_resolve(const char* uri)
 {
 	char *u, *ru;
 
-	if (StringStartsWith(uri, "https://")) {
+	if (StringStartsWithCaseASCII(uri, "https://")) {
 		u = xstrdup(uri);
 	} else if (StringStartsWith(uri, "soundcloud.com")) {
 		u = xstrcatdup("https://", uri);
@@ -221,9 +222,9 @@ static constexpr yajl_callbacks parse_callbacks = {
  */
 static void
 soundcloud_parse_json(const char *url, Yajl::Handle &handle,
-		      Mutex &mutex, Cond &cond)
+		      Mutex &mutex)
 {
-	auto input_stream = InputStream::OpenReady(url, mutex, cond);
+	auto input_stream = InputStream::OpenReady(url, mutex);
 	Yajl::ParseInputStream(handle, *input_stream);
 }
 
@@ -235,9 +236,9 @@ soundcloud_parse_json(const char *url, Yajl::Handle &handle,
  *	soundcloud://url/<url or path of soundcloud page>
  */
 static std::unique_ptr<SongEnumerator>
-soundcloud_open_uri(const char *uri, Mutex &mutex, Cond &cond)
+soundcloud_open_uri(const char *uri, Mutex &mutex)
 {
-	assert(strncmp(uri, "soundcloud://", 13) == 0);
+	assert(StringEqualsCaseASCII(uri, "soundcloud://", 13));
 	uri += 13;
 
 	char *u = nullptr;
@@ -277,7 +278,7 @@ soundcloud_open_uri(const char *uri, Mutex &mutex, Cond &cond)
 
 	SoundCloudJsonData data;
 	Yajl::Handle handle(&parse_callbacks, nullptr, &data);
-	soundcloud_parse_json(u, handle, mutex, cond);
+	soundcloud_parse_json(u, handle, mutex);
 
 	data.songs.reverse();
 	return std::make_unique<MemorySongEnumerator>(std::move(data.songs));

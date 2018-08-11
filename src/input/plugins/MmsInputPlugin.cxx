@@ -22,7 +22,7 @@
 #include "input/ThreadInputStream.hxx"
 #include "input/InputPlugin.hxx"
 #include "system/Error.hxx"
-#include "util/StringCompare.hxx"
+#include "util/ASCII.hxx"
 
 #include <libmms/mmsx.h>
 
@@ -34,8 +34,8 @@ class MmsInputStream final : public ThreadInputStream {
 	mmsx_t *mms;
 
 public:
-	MmsInputStream(const char *_uri, Mutex &_mutex, Cond &_cond)
-		:ThreadInputStream(input_plugin_mms.name, _uri, _mutex, _cond,
+	MmsInputStream(const char *_uri, Mutex &_mutex)
+		:ThreadInputStream(input_plugin_mms.name, _uri, _mutex,
 				   MMS_BUFFER_SIZE) {
 	}
 
@@ -70,15 +70,15 @@ MmsInputStream::Open()
 
 static InputStreamPtr
 input_mms_open(const char *url,
-	       Mutex &mutex, Cond &cond)
+	       Mutex &mutex)
 {
-	if (!StringStartsWith(url, "mms://") &&
-	    !StringStartsWith(url, "mmsh://") &&
-	    !StringStartsWith(url, "mmst://") &&
-	    !StringStartsWith(url, "mmsu://"))
+	if (!StringStartsWithCaseASCII(url, "mms://") &&
+	    !StringStartsWithCaseASCII(url, "mmsh://") &&
+	    !StringStartsWithCaseASCII(url, "mmst://") &&
+	    !StringStartsWithCaseASCII(url, "mmsu://"))
 		return nullptr;
 
-	auto m = std::make_unique<MmsInputStream>(url, mutex, cond);
+	auto m = std::make_unique<MmsInputStream>(url, mutex);
 	m->Start();
 	return m;
 }

@@ -35,6 +35,7 @@
 #include "event/Call.hxx"
 #include "event/DeferEvent.hxx"
 #include "event/TimerEvent.hxx"
+#include "util/ASCII.hxx"
 #include "util/StringCompare.hxx"
 
 extern "C" {
@@ -378,14 +379,13 @@ NfsListDirectoryOperation::CollectEntries(struct nfsdir *dir)
 		if (SkipNameFS(name_fs.c_str()))
 			continue;
 
-		std::string name_utf8 = name_fs.ToUTF8();
-		if (name_utf8.empty())
+		try {
+			entries.emplace_front(name_fs.ToUTF8Throw());
+			Copy(entries.front().info, *ent);
+		} catch (...) {
 			/* ignore files whose name cannot be converted
 			   to UTF-8 */
-			continue;
-
-		entries.emplace_front(std::move(name_utf8));
-		Copy(entries.front().info, *ent);
+		}
 	}
 }
 
@@ -405,10 +405,9 @@ NfsStorage::OpenDirectory(const char *uri_utf8)
 static std::unique_ptr<Storage>
 CreateNfsStorageURI(EventLoop &event_loop, const char *base)
 {
-	if (strncmp(base, "nfs://", 6) != 0)
+	const char *p = StringAfterPrefixCaseASCII(base, "nfs://");
+	if (p == nullptr)
 		return nullptr;
-
-	const char *p = base + 6;
 
 	const char *mount = strchr(p, '/');
 	if (mount == nullptr)

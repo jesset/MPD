@@ -28,13 +28,27 @@ void
 IcuInit();
 
 void
-IcuFinish();
+IcuFinish() noexcept;
 
 #else
 
-static inline void IcuInit() {}
-static inline void IcuFinish() {}
+static inline void IcuInit() noexcept {}
+static inline void IcuFinish() noexcept {}
 
 #endif
+
+class ScopeIcuInit {
+public:
+	ScopeIcuInit() {
+		IcuInit();
+	}
+
+	~ScopeIcuInit() noexcept {
+		IcuFinish();
+	}
+
+	ScopeIcuInit(const ScopeIcuInit &) = delete;
+	ScopeIcuInit &operator=(const ScopeIcuInit &) = delete;
+};
 
 #endif

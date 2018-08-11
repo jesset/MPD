@@ -3,9 +3,16 @@ from os.path import abspath
 
 from build.project import Project
 from build.zlib import ZlibProject
+from build.meson import MesonProject
 from build.autotools import AutotoolsProject
 from build.ffmpeg import FfmpegProject
 from build.boost import BoostProject
+
+libmpdclient = MesonProject(
+    'https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.14.tar.xz',
+    '0a84e2791bfe3077cf22ee1784c805d5bb550803dffe56a39aa3690a38061372',
+    'lib/libmpdclient.a',
+)
 
 libogg = AutotoolsProject(
     'http://downloads.xiph.org/releases/ogg/libogg-1.3.3.tar.xz',
@@ -105,8 +112,8 @@ liblame = AutotoolsProject(
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-4.0.tar.xz',
-    'ed945daf40b124e77a685893cc025d086f638bc703183460aff49508edb3a43f',
+    'http://ffmpeg.org/releases/ffmpeg-4.0.2.tar.xz',
+    'a95c0cc9eb990e94031d2183f2e6e444cc61c99f6f182d1575c433d62afb2f97',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -334,8 +341,8 @@ ffmpeg = FfmpegProject(
 )
 
 curl = AutotoolsProject(
-    'http://curl.haxx.se/download/curl-7.59.0.tar.xz',
-    'e44eaabdf916407585bf5c7939ff1161e6242b6b015d3f2f5b758b2a330461fc',
+    'http://curl.haxx.se/download/curl-7.61.0.tar.xz',
+    'ef6e55192d04713673b4409ccbcb4cb6cd723137d6e10ca45b0c593a454e1720',
     'lib/libcurl.a',
     [
         '--disable-shared', '--enable-static',
@@ -358,8 +365,8 @@ curl = AutotoolsProject(
 )
 
 libnfs = AutotoolsProject(
-    'https://github.com/sahlberg/libnfs/archive/libnfs-2.0.0.tar.gz',
-    '7ea6cd8fa6c461d01091e584d424d28e137d23ff4b65b95d01a3fd0ef95d120e',
+    'https://github.com/sahlberg/libnfs/archive/libnfs-3.0.0.tar.gz',
+    '445d92c5fc55e4a5b115e358e60486cf8f87ee50e0103d46a02e7fb4618566a5',
     'lib/libnfs.a',
     [
         '--disable-shared', '--enable-static',
@@ -368,7 +375,7 @@ libnfs = AutotoolsProject(
         # work around -Wtautological-compare
         '--disable-werror',
     ],
-    base='libnfs-libnfs-2.0.0',
+    base='libnfs-libnfs-3.0.0',
     autoreconf=True,
 )
 

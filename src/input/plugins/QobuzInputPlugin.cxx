@@ -28,6 +28,7 @@
 #include "input/FailingInputStream.hxx"
 #include "input/InputPlugin.hxx"
 #include "config/Block.hxx"
+#include "lib/gcrypt/Init.hxx"
 #include "thread/Mutex.hxx"
 #include "util/StringCompare.hxx"
 
@@ -49,8 +50,8 @@ class QobuzInputStream final
 
 public:
 	QobuzInputStream(const char *_uri, const char *_track_id,
-			 Mutex &_mutex, Cond &_cond) noexcept
-		:ProxyInputStream(_uri, _mutex, _cond),
+			 Mutex &_mutex) noexcept
+		:ProxyInputStream(_uri, _mutex),
 		 track_id(_track_id)
 	{
 		qobuz_client->AddLoginHandler(*this);
@@ -70,7 +71,7 @@ public:
 private:
 	void Failed(std::exception_ptr e) {
 		SetInput(std::make_unique<FailingInputStream>(GetURI(), e,
-							      mutex, cond));
+							      mutex));
 	}
 
 	/* virtual methods from QobuzSessionHandler */
@@ -89,11 +90,11 @@ QobuzInputStream::OnQobuzSession() noexcept
 	try {
 		const auto session = qobuz_client->GetSession();
 
-		QobuzTrackHandler &handler = *this;
+		QobuzTrackHandler &h = *this;
 		track_request = std::make_unique<QobuzTrackRequest>(*qobuz_client,
 								    session,
 								    track_id.c_str(),
-								    handler);
+								    h);
 		track_request->Start();
 	} catch (...) {
 		Failed(std::current_exception());
@@ -108,7 +109,7 @@ QobuzInputStream::OnQobuzTrackSuccess(std::string url) noexcept
 
 	try {
 		SetInput(OpenCurlInputStream(url.c_str(), {},
-					     mutex, cond));
+					     mutex));
 	} catch (...) {
 		Failed(std::current_exception());
 	}
@@ -126,6 +127,8 @@ QobuzInputStream::OnQobuzTrackError(std::exception_ptr e) noexcept
 static void
 InitQobuzInput(EventLoop &event_loop, const ConfigBlock &block)
 {
+	Gcrypt::Init();
+
 	const char *base_url = block.GetBlockValue("base_url",
 						   "http://www.qobuz.com/api.json/0.2/");
 
@@ -180,7 +183,7 @@ ExtractQobuzTrackId(const char *uri)
 }
 
 static InputStreamPtr
-OpenQobuzInput(const char *uri, Mutex &mutex, Cond &cond)
+OpenQobuzInput(const char *uri, Mutex &mutex)
 {
 	assert(qobuz_client != nullptr);
 
@@ -190,7 +193,7 @@ OpenQobuzInput(const char *uri, Mutex &mutex, Cond &cond)
 
 	// TODO: validate track_id
 
-	return std::make_unique<QobuzInputStream>(uri, track_id, mutex, cond);
+	return std::make_unique<QobuzInputStream>(uri, track_id, mutex);
 }
 
 static std::unique_ptr<RemoteTagScanner>

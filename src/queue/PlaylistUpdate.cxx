@@ -20,8 +20,8 @@
 #include "config.h"
 #include "Playlist.hxx"
 #include "db/Interface.hxx"
-#include "db/LightSong.hxx"
-#include "DetachedSong.hxx"
+#include "song/LightSong.hxx"
+#include "song/DetachedSong.hxx"
 
 static bool
 UpdatePlaylistSong(const Database &db, DetachedSong &song)
@@ -50,7 +50,7 @@ UpdatePlaylistSong(const Database &db, DetachedSong &song)
 	}
 
 	song.SetLastModified(original->mtime);
-	song.SetTag(*original->tag);
+	song.SetTag(original->tag);
 
 	db.ReturnSong(original);
 	return true;

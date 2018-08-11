@@ -23,10 +23,7 @@
 #include "../InputPlugin.hxx"
 #include "lib/nfs/Glue.hxx"
 #include "lib/nfs/FileReader.hxx"
-#include "thread/Cond.hxx"
-#include "util/StringCompare.hxx"
-
-#include <string.h>
+#include "util/ASCII.hxx"
 
 /**
  * Do not buffer more than this number of bytes.  It should be a
@@ -46,9 +43,9 @@ class NfsInputStream final : NfsFileReader, public AsyncInputStream {
 	bool reconnect_on_resume = false, reconnecting = false;
 
 public:
-	NfsInputStream(const char *_uri, Mutex &_mutex, Cond &_cond)
+	NfsInputStream(const char *_uri, Mutex &_mutex)
 		:AsyncInputStream(NfsFileReader::GetEventLoop(),
-				  _uri, _mutex, _cond,
+				  _uri, _mutex,
 				  NFS_MAX_BUFFERED,
 				  NFS_RESUME_AT) {}
 
@@ -100,7 +97,7 @@ NfsInputStream::DoRead()
 		NfsFileReader::Read(next_offset, nbytes);
 	} catch (...) {
 		postponed_exception = std::current_exception();
-		cond.broadcast();
+		InvokeOnAvailable();
 	}
 }
 
@@ -196,7 +193,7 @@ NfsInputStream::OnNfsFileError(std::exception_ptr &&e) noexcept
 	else if (!IsReady())
 		SetReady();
 	else
-		cond.broadcast();
+		InvokeOnAvailable();
 }
 
 /*
@@ -218,12 +215,12 @@ input_nfs_finish() noexcept
 
 static InputStreamPtr
 input_nfs_open(const char *uri,
-	       Mutex &mutex, Cond &cond)
+	       Mutex &mutex)
 {
-	if (!StringStartsWith(uri, "nfs://"))
+	if (!StringStartsWithCaseASCII(uri, "nfs://"))
 		return nullptr;
 
-	auto is = std::make_unique<NfsInputStream>(uri, mutex, cond);
+	auto is = std::make_unique<NfsInputStream>(uri, mutex);
 	is->Open();
 	return is;
 }

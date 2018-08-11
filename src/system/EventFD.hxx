@@ -25,16 +25,17 @@
 
 /**
  * A class that wraps eventfd().
- *
- * Errors in the constructor are fatal.
  */
 class EventFD {
 	UniqueFileDescriptor fd;
 
 public:
+	/**
+	 * Throws on error.
+	 */
 	EventFD();
 
-	int Get() const {
+	int Get() const noexcept {
 		return fd.Get();
 	}
 
@@ -42,13 +43,13 @@ public:
 	 * Checks if Write() was called at least once since the last
 	 * Read() call.
 	 */
-	bool Read();
+	bool Read() noexcept;
 
 	/**
 	 * Wakes up the reader.  Multiple calls to this function will
 	 * be combined to one wakeup.
 	 */
-	void Write();
+	void Write() noexcept;
 };
 
 #endif

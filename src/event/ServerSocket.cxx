@@ -39,7 +39,6 @@
 #include <string>
 #include <algorithm>
 
-#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
 #include <assert.h>
@@ -164,8 +163,9 @@ OneServerSocket::Accept() noexcept
 			    (const char *)msg);
 	}
 
-	parent.OnAccept(std::move(peer_fd), peer_address,
-			get_remote_uid(peer_fd.Get()));
+	const auto uid = get_remote_uid(peer_fd.Get());
+
+	parent.OnAccept(std::move(peer_fd), peer_address, uid);
 }
 
 bool
@@ -184,14 +184,7 @@ OneServerSocket::Open()
 				      SOCK_STREAM, 0,
 				      address, 5);
 
-#ifdef HAVE_UN
-	/* allow everybody to connect */
-
-	if (!path.IsNull())
-		chmod(path.c_str(), 0666);
-#endif
-
-	/* register in the EventLoop */
+	/* register in the EventLoop */	
 
 	SetFD(_fd.Release());
 }

@@ -23,7 +23,8 @@
 #include "check.h"
 #include "db/Interface.hxx"
 #include "fs/AllocatedPath.hxx"
-#include "db/LightSong.hxx"
+#include "song/LightSong.hxx"
+#include "util/Manual.hxx"
 #include "Compiler.h"
 
 #include <cassert>
@@ -61,7 +62,7 @@ class SimpleDatabase : public Database {
 	/**
 	 * A buffer for GetSong().
 	 */
-	mutable LightSong light_song;
+	mutable Manual<LightSong> light_song;
 
 #ifndef NDEBUG
 	mutable unsigned borrowed_song_count;

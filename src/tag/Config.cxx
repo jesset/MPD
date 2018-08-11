@@ -21,52 +21,49 @@
 #include "Config.hxx"
 #include "Settings.hxx"
 #include "ParseName.hxx"
-#include "config/ConfigGlobal.hxx"
-#include "config/ConfigOption.hxx"
-#include "util/Alloc.hxx"
+#include "config/Data.hxx"
+#include "config/Option.hxx"
 #include "util/ASCII.hxx"
-#include "util/StringStrip.hxx"
 #include "util/RuntimeError.hxx"
-
-#include <stdlib.h>
+#include "util/SplitString.hxx"
 
 void
-TagLoadConfig()
+TagLoadConfig(const ConfigData &config)
 {
-	const char *value = config_get_string(ConfigOption::METADATA_TO_USE);
+	const char *value = config.GetString(ConfigOption::METADATA_TO_USE);
 	if (value == nullptr)
 		return;
 
-	global_tag_mask = TagMask::None();
-
-	if (StringEqualsCaseASCII(value, "none"))
+	if (StringEqualsCaseASCII(value, "none")) {
+		global_tag_mask = TagMask::None();
 		return;
+	}
 
-	bool quit = false;
-	char *temp, *c, *s;
-	temp = c = s = xstrdup(value);
-	do {
-		if (*s == ',' || *s == '\0') {
-			if (*s == '\0')
-				quit = true;
-			*s = '\0';
+	bool plus = true;
 
-			c = Strip(c);
-			if (*c == 0)
-				continue;
+	if (*value != '+' && *value != '-')
+		/* no "+-": not incremental */
+		global_tag_mask = TagMask::None();
 
-			const auto type = tag_name_parse_i(c);
-			if (type == TAG_NUM_OF_ITEM_TYPES)
-				throw FormatRuntimeError("error parsing metadata item \"%s\"",
-							 c);
+	for (const auto &i : SplitString(value, ',')) {
+		const char *name = i.c_str();
 
-			global_tag_mask |= type;
-
-			s++;
-			c = s;
+		if (*name == '+') {
+			plus = true;
+			++name;
+		} else if (*name == '-') {
+			plus = false;
+			++name;
 		}
-		s++;
-	} while (!quit);
 
-	free(temp);
+		const auto type = tag_name_parse_i(name);
+		if (type == TAG_NUM_OF_ITEM_TYPES)
+			throw FormatRuntimeError("error parsing metadata item \"%s\"",
+						 name);
+
+		if (plus)
+			global_tag_mask.Set(type);
+		else
+			global_tag_mask.Unset(type);
+	}
 }

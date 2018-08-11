@@ -26,9 +26,12 @@
 #include "db/DatabaseError.hxx"
 #include "db/PlaylistInfo.hxx"
 #include "db/LightDirectory.hxx"
-#include "db/LightSong.hxx"
+#include "song/LightSong.hxx"
 #include "db/Stats.hxx"
-#include "SongFilter.hxx"
+#include "song/Filter.hxx"
+#include "song/UriSongFilter.hxx"
+#include "song/BaseSongFilter.hxx"
+#include "song/TagSongFilter.hxx"
 #include "Compiler.h"
 #include "config/Block.hxx"
 #include "tag/Builder.hxx"
@@ -84,6 +87,7 @@ class ProxyDatabase final : public Database, SocketMonitor, IdleMonitor {
 	DatabaseListener &listener;
 
 	const std::string host;
+	const std::string password;
 	const unsigned port;
 	const bool keepalive;
 
@@ -177,6 +181,13 @@ static constexpr struct {
 	{ TAG_MUSICBRAINZ_RELEASETRACKID,
 	  MPD_TAG_MUSICBRAINZ_RELEASETRACKID },
 #endif
+#if LIBMPDCLIENT_CHECK_VERSION(2,11,0)
+	{ TAG_ARTIST_SORT, MPD_TAG_ARTIST_SORT },
+	{ TAG_ALBUM_ARTIST_SORT, MPD_TAG_ALBUM_ARTIST_SORT },
+#endif
+#if LIBMPDCLIENT_CHECK_VERSION(2,12,0)
+	{ TAG_ALBUM_SORT, MPD_TAG_ALBUM_SORT },
+#endif
 	{ TAG_NUM_OF_ITEM_TYPES, MPD_TAG_COUNT }
 };
 
@@ -195,22 +206,15 @@ Copy(TagBuilder &tag, TagType d_tag,
 }
 
 ProxySong::ProxySong(const mpd_song *song)
+	:LightSong(mpd_song_get_uri(song), tag2)
 {
-	directory = nullptr;
-	uri = mpd_song_get_uri(song);
-	real_uri = nullptr;
-	tag = &tag2;
-
 	const auto _mtime = mpd_song_get_last_modified(song);
-	mtime = _mtime > 0
-		? std::chrono::system_clock::from_time_t(_mtime)
-		: std::chrono::system_clock::time_point::min();
+	if (_mtime > 0)
+		mtime = std::chrono::system_clock::from_time_t(_mtime);
 
 #if LIBMPDCLIENT_CHECK_VERSION(2,3,0)
 	start_time = SongTime::FromS(mpd_song_get_start(song));
 	end_time = SongTime::FromS(mpd_song_get_end(song));
-#else
-	start_time = end_time = SongTime::zero();
 #endif
 
 	TagBuilder tag_builder;
@@ -267,49 +271,53 @@ CheckError(struct mpd_connection *connection)
 }
 
 static bool
-SendConstraints(mpd_connection *connection, const SongFilter::Item &item)
+SendConstraints(mpd_connection *connection, const ISongFilter &f)
 {
-	switch (item.GetTag()) {
-		mpd_tag_type tag;
-
-#if LIBMPDCLIENT_CHECK_VERSION(2,9,0)
-	case LOCATE_TAG_BASE_TYPE:
-		if (mpd_connection_cmp_server_version(connection, 0, 18, 0) < 0)
-			/* requires MPD 0.18 */
+	if (auto t = dynamic_cast<const TagSongFilter *>(&f)) {
+		if (t->IsNegated())
+			// TODO implement
 			return true;
 
-		return mpd_search_add_base_constraint(connection,
-						      MPD_OPERATOR_DEFAULT,
-						      item.GetValue());
-#endif
+		if (t->GetTagType() == TAG_NUM_OF_ITEM_TYPES)
+			return mpd_search_add_any_tag_constraint(connection,
+								 MPD_OPERATOR_DEFAULT,
+								 t->GetValue().c_str());
 
-	case LOCATE_TAG_FILE_TYPE:
-		return mpd_search_add_uri_constraint(connection,
-						     MPD_OPERATOR_DEFAULT,
-						     item.GetValue());
-
-	case LOCATE_TAG_ANY_TYPE:
-		return mpd_search_add_any_tag_constraint(connection,
-							 MPD_OPERATOR_DEFAULT,
-							 item.GetValue());
-
-	default:
-		tag = Convert(TagType(item.GetTag()));
+		const auto tag = Convert(t->GetTagType());
 		if (tag == MPD_TAG_COUNT)
 			return true;
 
 		return mpd_search_add_tag_constraint(connection,
 						     MPD_OPERATOR_DEFAULT,
 						     tag,
-						     item.GetValue());
-	}
+						     t->GetValue().c_str());
+	} else if (auto u = dynamic_cast<const UriSongFilter *>(&f)) {
+		if (u->IsNegated())
+			// TODO implement
+			return true;
+
+		return mpd_search_add_uri_constraint(connection,
+						     MPD_OPERATOR_DEFAULT,
+						     u->GetValue().c_str());
+#if LIBMPDCLIENT_CHECK_VERSION(2,9,0)
+	} else if (auto b = dynamic_cast<const BaseSongFilter *>(&f)) {
+		if (mpd_connection_cmp_server_version(connection, 0, 18, 0) < 0)
+			/* requires MPD 0.18 */
+			return true;
+
+		return mpd_search_add_base_constraint(connection,
+						      MPD_OPERATOR_DEFAULT,
+						      b->GetValue());
+#endif
+	} else
+		return true;
 }
 
 static bool
 SendConstraints(mpd_connection *connection, const SongFilter &filter)
 {
 	for (const auto &i : filter.GetItems())
-		if (!SendConstraints(connection, i))
+		if (!SendConstraints(connection, *i))
 			return false;
 
 	return true;
@@ -371,6 +379,7 @@ ProxyDatabase::ProxyDatabase(EventLoop &_loop, DatabaseListener &_listener,
 	 SocketMonitor(_loop), IdleMonitor(_loop),
 	 listener(_listener),
 	 host(block.GetBlockValue("host", "")),
+	 password(block.GetBlockValue("password", "")),
 	 port(block.GetBlockValue("port", 0u)),
 	 keepalive(block.GetBlockValue("keepalive", false))
 {
@@ -415,6 +424,10 @@ ProxyDatabase::Connect()
 
 	try {
 		CheckError(connection);
+
+		if (!password.empty() &&
+		    !mpd_run_password(connection, password.c_str()))
+			ThrowError(connection);
 	} catch (...) {
 		mpd_connection_free(connection);
 		connection = nullptr;

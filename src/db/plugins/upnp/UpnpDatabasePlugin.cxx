@@ -29,7 +29,9 @@
 #include "db/Selection.hxx"
 #include "db/DatabaseError.hxx"
 #include "db/LightDirectory.hxx"
-#include "db/LightSong.hxx"
+#include "song/LightSong.hxx"
+#include "song/Filter.hxx"
+#include "song/TagSongFilter.hxx"
 #include "db/Stats.hxx"
 #include "config/Block.hxx"
 #include "tag/Builder.hxx"
@@ -37,7 +39,6 @@
 #include "tag/Mask.hxx"
 #include "fs/Traits.hxx"
 #include "Log.hxx"
-#include "SongFilter.hxx"
 #include "util/SplitString.hxx"
 
 #include <string>
@@ -48,22 +49,25 @@
 
 static const char *const rootid = "0";
 
-class UpnpSong : public LightSong {
-	std::string uri2, real_uri2;
+class UpnpSongData {
+protected:
+	std::string uri;
+	Tag tag;
 
-	Tag tag2;
+	template<typename U, typename T>
+	UpnpSongData(U &&_uri, T &&_tag) noexcept
+		:uri(std::forward<U>(_uri)), tag(std::forward<T>(_tag)) {}
+};
+
+class UpnpSong : UpnpSongData, public LightSong {
+	std::string real_uri2;
 
 public:
 	UpnpSong(UPnPDirObject &&object, std::string &&_uri)
-		:uri2(std::move(_uri)),
-		 real_uri2(std::move(object.url)),
-		 tag2(std::move(object.tag)) {
-		directory = nullptr;
-		uri = uri2.c_str();
+		:UpnpSongData(std::move(_uri), std::move(object.tag)),
+		 LightSong(UpnpSongData::uri.c_str(), UpnpSongData::tag),
+		 real_uri2(std::move(object.url)) {
 		real_uri = real_uri2.c_str();
-		tag = &tag2;
-		mtime = std::chrono::system_clock::time_point::min();
-		start_time = end_time = SongTime::zero();
 	}
 };
 
@@ -251,9 +255,9 @@ UpnpDatabase::SearchSongs(const ContentDirectoryService &server,
 
 	std::string cond;
 	for (const auto &item : filter->GetItems()) {
-		switch (auto tag = item.GetTag()) {
-		case LOCATE_TAG_ANY_TYPE:
-			{
+		if (auto t = dynamic_cast<const TagSongFilter *>(item.get())) {
+			auto tag = t->GetTagType();
+			if (tag == TAG_NUM_OF_ITEM_TYPES) {
 				if (!cond.empty()) {
 					cond += " and ";
 				}
@@ -265,29 +269,21 @@ UpnpDatabase::SearchSongs(const ContentDirectoryService &server,
 					else
 						cond += " or ";
 					cond += cap;
-					if (item.GetFoldCase()) {
+					if (t->GetFoldCase()) {
 						cond += " contains ";
 					} else {
 						cond += " = ";
 					}
-					dquote(cond, item.GetValue());
+					dquote(cond, t->GetValue().c_str());
 				}
 				cond += ')';
+				continue;
 			}
-			break;
 
-		default:
-			/* Unhandled conditions like
-			   LOCATE_TAG_BASE_TYPE or
-			   LOCATE_TAG_FILE_TYPE won't have a
-			   corresponding upnp prop, so they will be
-			   skipped */
 			if (tag == TAG_ALBUM_ARTIST)
 				tag = TAG_ARTIST;
 
-			// TODO: support LOCATE_TAG_ANY_TYPE etc.
-			const char *name = tag_table_lookup(upnp_tags,
-							    TagType(tag));
+			const char *name = tag_table_lookup(upnp_tags, tag);
 			if (name == nullptr)
 				continue;
 
@@ -301,13 +297,15 @@ UpnpDatabase::SearchSongs(const ContentDirectoryService &server,
 			   case-insensitive, but at least some servers
 			   have the same convention as mpd (e.g.:
 			   minidlna) */
-			if (item.GetFoldCase()) {
+			if (t->GetFoldCase()) {
 				cond += " contains ";
 			} else {
 				cond += " = ";
 			}
-			dquote(cond, item.GetValue());
+			dquote(cond, t->GetValue().c_str());
 		}
+
+		// TODO: support other ISongFilter implementations
 	}
 
 	return server.search(handle, objid, cond.c_str());
@@ -321,13 +319,8 @@ visitSong(const UPnPDirObject &meta, const char *path,
 	if (!visit_song)
 		return;
 
-	LightSong song;
-	song.directory = nullptr;
-	song.uri = path;
+	LightSong song(path, meta.tag);
 	song.real_uri = meta.url.c_str();
-	song.tag = &meta.tag;
-	song.mtime = std::chrono::system_clock::time_point::min();
-	song.start_time = song.end_time = SongTime::zero();
 
 	if (selection.Match(song))
 		visit_song(song);

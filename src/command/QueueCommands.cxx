@@ -23,9 +23,9 @@
 #include "CommandError.hxx"
 #include "db/DatabaseQueue.hxx"
 #include "db/Selection.hxx"
-#include "SongFilter.hxx"
+#include "song/Filter.hxx"
 #include "SongLoader.hxx"
-#include "DetachedSong.hxx"
+#include "song/DetachedSong.hxx"
 #include "LocateUri.hxx"
 #include "queue/Playlist.hxx"
 #include "PlaylistPrint.hxx"
@@ -35,6 +35,7 @@
 #include "Instance.hxx"
 #include "BulkEdit.hxx"
 #include "util/ConstBuffer.hxx"
+#include "util/Exception.hxx"
 #include "util/StringAPI.hxx"
 #include "util/NumberParser.hxx"
 
@@ -264,10 +265,14 @@ handle_playlist_match(Client &client, Request args, Response &r,
 		      bool fold_case)
 {
 	SongFilter filter;
-	if (!filter.Parse(args, fold_case)) {
-		r.Error(ACK_ERROR_ARG, "incorrect arguments");
+	try {
+		filter.Parse(args, fold_case);
+	} catch (...) {
+		r.Error(ACK_ERROR_ARG,
+			GetFullMessage(std::current_exception()).c_str());
 		return CommandResult::ERROR;
 	}
+	filter.Optimize();
 
 	playlist_print_find(r, client.GetPlaylist(), filter);
 	return CommandResult::OK;

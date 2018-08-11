@@ -316,7 +316,7 @@ else
 fi
 
 default_enable_daemon=yes
-if test x$host_is_android = xyes || test x$host_is_android = xyes; then
+if test x$host_is_android = xyes || test x$host_is_windows = xyes; then
 	default_enable_daemon=no
 fi
 AC_ARG_ENABLE(daemon,
@@ -381,11 +381,6 @@ AC_ARG_ENABLE([libwrap],
 	AS_HELP_STRING([--enable-libwrap], [use libwrap]),,
 	[enable_libwrap=auto])
 
-AC_ARG_ENABLE(mikmod,
-	AS_HELP_STRING([--enable-mikmod],
-		[enable the mikmod decoder (default: disable)]),,
-	enable_mikmod=no)
-
 AC_ARG_ENABLE(openal,
 	AS_HELP_STRING([--enable-openal],
 		[enable OpenAL support (default: auto)]),,
@@ -423,7 +418,7 @@ AC_ARG_ENABLE(dvdaiso,
 
 AC_ARG_ENABLE(sidplay,
 	AS_HELP_STRING([--enable-sidplay],
-		[enable C64 SID support via libsidplay2]),,
+		[enable C64 SID support via libsidplayfp or libsidplay2]),,
 	enable_sidplay=auto)
 
 AC_ARG_ENABLE(shout,
@@ -475,14 +470,14 @@ dnl ---------------------------------------------------------------------------
 dnl Mandatory Libraries
 dnl ---------------------------------------------------------------------------
 
-AX_BOOST_BASE([1.54],, [AC_MSG_ERROR([Boost not found])])
+AX_BOOST_BASE([1.58],, [AC_MSG_ERROR([Boost not found])])
 
 AC_ARG_ENABLE(icu,
 	AS_HELP_STRING([--enable-icu],
 		[enable libicu for Unicode (default: auto)]),,
 	enable_icu=auto)
 
-MPD_AUTO_PKG(icu, ICU, [icu-i18n], [libicu], [libicu not found])
+MPD_AUTO_PKG(icu, ICU, [icu-i18n >= 50], [libicu], [libicu not found])
 MPD_DEFINE_CONDITIONAL(enable_icu, HAVE_ICU, [libicu])
 
 AC_ARG_ENABLE(iconv,
@@ -635,6 +630,21 @@ if test x$enable_libwrap = xyes; then
 	AC_SUBST(LIBWRAP_LDFLAGS)
 	AC_DEFINE(HAVE_LIBWRAP, 1, [define to enable libwrap library])
 fi
+
+dnl ---------------------------------------------------------------------------
+dnl D-Bus
+dnl ---------------------------------------------------------------------------
+
+MPD_ENABLE_AUTO_PKG(dbus, DBUS, [dbus-1], [D-Bus support], [dbus-1 not found])
+
+AC_ARG_ENABLE(udisks,
+	AS_HELP_STRING([--enable-udisks],
+		[support for removable media via udisks2]),,
+	[enable_udisks=auto])
+
+MPD_DEPENDS([enable_udisks], [found_dbus], [support for removable media via udisks2], [dbus-1 not found])
+MPD_AUTO(udisks, [support for removable media via udisks2], [udisks not available], [found_udisks=yes])
+MPD_DEFINE_CONDITIONAL(enable_udisks, ENABLE_UDISKS, [support for removable media via udisks2])
 
 dnl ---------------------------------------------------------------------------
 dnl Metadata Plugins
@@ -803,6 +813,9 @@ if test x$enable_neighbor_plugins = xauto; then
 	if test x$enable_upnp = xyes; then
 		enable_neighbor_plugins=yes
 	fi
+	if test x$enable_udisks = xyes; then
+		enable_neighbor_plugins=yes
+	fi
 fi
 
 MPD_DEFINE_CONDITIONAL(enable_neighbor_plugins, ENABLE_NEIGHBOR_PLUGINS,
@@ -903,7 +916,7 @@ MPD_ENABLE_AUTO_LIB(aac, FAAD, faad, NeAACDecOpen, [-lfaad], [],
 
 dnl ---------------------------------- ffmpeg ---------------------------------
 MPD_ENABLE_AUTO_PKG(ffmpeg, FFMPEG,
-	[libavformat >= 53.17 libavcodec >= 53.25 libavutil >= 51.17],
+	[libavformat >= 56.1 libavcodec >= 56.1 libavutil >= 54.3],
 	[ffmpeg decoder library], [libavformat+libavcodec+libavutil not found])
 
 dnl ----------------------------------- FLAC ----------------------------------
@@ -941,18 +954,8 @@ MPD_ENABLE_AUTO_PKG(mpg123, MPG123, [libmpg123],
 	[libmpg123 decoder plugin], [libmpg123 not found])
 
 dnl -------------------------------- libmikmod --------------------------------
-if test x$enable_mikmod = xyes; then
-	AC_PATH_PROG(LIBMIKMOD_CONFIG, libmikmod-config)
-	if test x$LIBMIKMOD_CONFIG != x ; then
-		AC_SUBST(LIBMIKMOD_CFLAGS, `$LIBMIKMOD_CONFIG --cflags`)
-		AC_SUBST(LIBMIKMOD_LIBS, `$LIBMIKMOD_CONFIG --libs`)
-		AC_DEFINE(ENABLE_MIKMOD_DECODER, 1, [Define for mikmod support])
-	else
-		enable_mikmod=no
-	fi
-fi
-
-AM_CONDITIONAL(ENABLE_MIKMOD_DECODER, test x$enable_mikmod = xyes)
+MPD_ENABLE_AUTO_PKG(mikmod, LIBMIKMOD, [libmikmod >= 3.2],
+	[MikMod decoder plugin], [libmikmod not found])
 
 dnl -------------------------------- libmodplug -------------------------------
 MPD_ENABLE_AUTO_PKG(modplug, MODPLUG, [libmodplug],
@@ -1067,7 +1070,7 @@ if test x$enable_sidplay != xno && test x$found_sidplayfp = xno; then
 		[found_sidplay=no])
 
 	MPD_AUTO_PRE(sidplay, [sidplay decoder plugin],
-		[libsidplay2 not found])
+		[libsidplay2 or libsidutils not found])
 fi
 
 if test x$enable_sidplay != xno && test x$found_sidplayfp = xno; then
@@ -1079,10 +1082,11 @@ if test x$enable_sidplay != xno && test x$found_sidplayfp = xno; then
 fi
 
 if test x$enable_sidplay = xyes; then
-	SIDPLAY_LIBS="$SIDPLAY_LIBS -lresid-builder"
-	AC_DEFINE(ENABLE_SIDPLAY, 1, [Define for libsidplay2 support])
+	AC_DEFINE(ENABLE_SIDPLAY, 1, [Define for libsidplayfp or libsidplay2 support])
 	if test x$found_sidplayfp = xyes; then
 		AC_DEFINE(HAVE_SIDPLAYFP, 1, [Define if libsidplayfp is used instead of libsidplay2])
+	else
+		SIDPLAY_LIBS="$SIDPLAY_LIBS -lresid-builder"
 	fi
 fi
 
@@ -1375,6 +1379,12 @@ dnl ---------------------------------------------------------------------------
 dnl Documentation
 dnl ---------------------------------------------------------------------------
 if test x$enable_documentation = xyes; then
+	AC_PATH_PROG(SPHINX, sphinx-build)
+	if test x$SPHINX = x; then
+		AC_MSG_ERROR([sphinx-build not found])
+	fi
+	AC_SUBST(SPHINX)
+
 	AC_PATH_PROG(XMLTO, xmlto)
 	if test x$XMLTO = x; then
 		AC_MSG_ERROR([xmlto not found])
@@ -1534,6 +1544,8 @@ results(soxr, [libsoxr])
 results(libmpdclient, [libmpdclient])
 results(inotify, [inotify])
 results(sqlite, [SQLite])
+results(dbus, [DBUS])
+results(udisks, [UDISKS])
 
 printf '\nMetadata support:\n\t'
 results(id3,[ID3])
