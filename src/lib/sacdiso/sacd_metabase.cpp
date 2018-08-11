@@ -71,7 +71,7 @@ sacd_metabase_t::~sacd_metabase_t() {
 	}
 }
 
-bool sacd_metabase_t::get_info(uint32_t track_index, const struct TagHandler& handler, void* handler_ctx) {
+bool sacd_metabase_t::get_info(uint32_t track_index, TagHandler& handler) {
 	if (!metabase_loaded) {
 		return false;
 	}
@@ -114,7 +114,7 @@ bool sacd_metabase_t::get_info(uint32_t track_index, const struct TagHandler& ha
 							}
 						}
 						if (tag_type != TAG_NUM_OF_ITEM_TYPES) {
-							tag_handler_invoke_tag(handler, handler_ctx, tag_type, tag_value.c_str());
+							handler.OnTag(tag_type, tag_value.c_str());
 						}
 					}
 					//ixmlNamedNodeMap_free(attr_tag);

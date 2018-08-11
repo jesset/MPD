@@ -30,7 +30,7 @@
 #include "CheckAudioFormat.hxx"
 #include "tag/Handler.hxx"
 #include "tag/Builder.hxx"
-#include "DetachedSong.hxx"
+#include "song/DetachedSong.hxx"
 #include "fs/Path.hxx"
 #include "fs/AllocatedPath.hxx"
 #include "thread/Cond.hxx"
@@ -182,12 +182,12 @@ sacdiso_update_toc(const char* path) {
 }
 
 static void
-sacdiso_scan_info(unsigned track, unsigned track_index, const TagHandler& handler, void* handler_ctx) {
+sacdiso_scan_info(unsigned track, unsigned track_index, TagHandler& handler) {
 	string tag_value = to_string(track + 1);
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_TRACK, tag_value.c_str());
-	tag_handler_invoke_duration(handler, handler_ctx, SongTime::FromS(sacd_reader->get_duration(track)));
-	if (!sacd_metabase || (sacd_metabase && !sacd_metabase->get_info(track_index, handler, handler_ctx))) {
-		sacd_reader->get_info(track, handler, handler_ctx);
+	handler.OnTag(TAG_TRACK, tag_value.c_str());
+	handler.OnDuration(SongTime::FromS(sacd_reader->get_duration(track)));
+	if (!sacd_metabase || (sacd_metabase && !sacd_metabase->get_info(track_index, handler))) {
+		sacd_reader->get_info(track, handler);
 	}
 }
 
@@ -213,7 +213,7 @@ sacdiso_init(const ConfigBlock& block) {
 }
 
 static void
-sacdiso_finish() {
+sacdiso_finish() noexcept {
 	sacdiso_update_toc(nullptr);
 }
 
@@ -232,7 +232,8 @@ sacdiso_container_scan(Path path_fs) {
 	if (twoch_count > 0 && param_playable_area != AREA_MULCH) {
 		sacd_reader->select_area(AREA_TWOCH);
 		for (unsigned track = 0; track < twoch_count; track++) {
-			sacdiso_scan_info(track, track, add_tag_handler, &tag_builder);
+			AddTagHandler h(tag_builder);
+			sacdiso_scan_info(track, track, h);
 			sprintf(track_name, SACD_TRACKXXX_FMT, '2', track + 1, suffix);
 			tail = list.emplace_after(tail, track_name, tag_builder.Commit());
 		}
@@ -240,7 +241,8 @@ sacdiso_container_scan(Path path_fs) {
 	if (mulch_count > 0 && param_playable_area != AREA_TWOCH) {
 		sacd_reader->select_area(AREA_MULCH);
 		for (unsigned track = 0; track < mulch_count; track++) {
-			sacdiso_scan_info(track, track + twoch_count, add_tag_handler, &tag_builder);
+			AddTagHandler h(tag_builder);
+			sacdiso_scan_info(track, track + twoch_count, h);
 			sprintf(track_name, SACD_TRACKXXX_FMT, 'M', track + 1, suffix);
 			tail = list.emplace_after(tail, track_name, tag_builder.Commit());
 		}
@@ -389,7 +391,7 @@ sacdiso_file_decode(DecoderClient &client, Path path_fs) {
 }
 
 static bool
-sacdiso_scan_file(Path path_fs, const TagHandler& handler, void* handler_ctx) {
+sacdiso_scan_file(Path path_fs, TagHandler& handler) noexcept {
 	string path_container = get_container_path(path_fs.c_str());
 	if (path_container.empty()) {
 		return false;
@@ -414,7 +416,7 @@ sacdiso_scan_file(Path path_fs, const TagHandler& handler, void* handler_ctx) {
 			return false;
 		}
 	}
-	sacdiso_scan_info(track, track_index, handler, handler_ctx);
+	sacdiso_scan_info(track, track_index, handler);
 	return true;
 }
 

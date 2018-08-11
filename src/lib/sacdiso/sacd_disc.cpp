@@ -196,7 +196,7 @@ double sacd_disc_t::get_duration(uint32_t track_index) {
 	return track_duration;
 }
 
-void sacd_disc_t::get_info(uint32_t track_index, const struct TagHandler& handler, void *handler_ctx) {
+void sacd_disc_t::get_info(uint32_t track_index, TagHandler& handler) {
 	scarletbook_area_t* area = get_area(track_area);
 	if (!(area != nullptr && track_index < get_tracks(track_area))) {
 		return;
@@ -205,7 +205,7 @@ void sacd_disc_t::get_info(uint32_t track_index, const struct TagHandler& handle
 	if (get_handle()->master_toc->album_set_size > 1) {
 		if (get_handle()->master_toc->album_sequence_number > 0) {
 			tag_value = to_string(get_handle()->master_toc->album_sequence_number);
-			tag_handler_invoke_tag(handler, handler_ctx, TAG_DISC, tag_value.c_str());
+			handler.OnTag(TAG_DISC, tag_value.c_str());
 		}
 	}
 	scarletbook_handle_t* sb = get_handle();
@@ -227,7 +227,7 @@ void sacd_disc_t::get_info(uint32_t track_index, const struct TagHandler& handle
 			}
 		}
 		*/
-		tag_handler_invoke_tag(handler, handler_ctx, TAG_DATE, tag_value.c_str());
+		handler.OnTag(TAG_DATE, tag_value.c_str());
 	}
 	if (!sb->master_text.album_title.empty()) {
 		tag_value  = sb->master_text.album_title;
@@ -236,10 +236,10 @@ void sacd_disc_t::get_info(uint32_t track_index, const struct TagHandler& handle
 		tag_value += "-";
 		tag_value += is_dst() ? "DST" : "DSD";
 		tag_value += ")";
-		tag_handler_invoke_tag(handler, handler_ctx, TAG_ALBUM, tag_value.c_str());
+		handler.OnTag(TAG_ALBUM, tag_value.c_str());
 	}
 	if (!sb->master_text.album_artist.empty()) {
-		tag_handler_invoke_tag(handler, handler_ctx, TAG_ARTIST, sb->master_text.album_artist.c_str());
+		handler.OnTag(TAG_ARTIST, sb->master_text.album_artist.c_str());
 	}
 	if (!area->area_track_text[track_index].track_type_title.empty()) {
 		char track_number_string[4];
@@ -249,22 +249,22 @@ void sacd_disc_t::get_info(uint32_t track_index, const struct TagHandler& handle
 		tag_value += track_number_string;
 		tag_value += " - ";
 		tag_value += area->area_track_text[track_index].track_type_title;
-		tag_handler_invoke_tag(handler, handler_ctx, TAG_TITLE, tag_value.c_str());
+		handler.OnTag(TAG_TITLE, tag_value.c_str());
 	}
 	if (!area->area_track_text[track_index].track_type_composer.empty()) {
-		tag_handler_invoke_tag(handler, handler_ctx, TAG_COMPOSER, area->area_track_text[track_index].track_type_composer.c_str());
+		handler.OnTag(TAG_COMPOSER, area->area_track_text[track_index].track_type_composer.c_str());
 	}
 	if (!area->area_track_text[track_index].track_type_performer.empty()) {
-		tag_handler_invoke_tag(handler, handler_ctx, TAG_PERFORMER, area->area_track_text[track_index].track_type_performer.c_str());
+		handler.OnTag(TAG_PERFORMER, area->area_track_text[track_index].track_type_performer.c_str());
 	}
 	if (!area->area_track_text[track_index].track_type_message.empty()) {
-		tag_handler_invoke_tag(handler, handler_ctx, TAG_COMMENT, area->area_track_text[track_index].track_type_message.c_str());
+		handler.OnTag(TAG_COMMENT, area->area_track_text[track_index].track_type_message.c_str());
 	}
 	if (area->area_isrc_genre) {
 		if (area->area_isrc_genre->track_genre[track_index].category == 1) {
 			uint8_t genre = area->area_isrc_genre->track_genre[track_index].genre;
 			if (genre > 0) {
-				tag_handler_invoke_tag(handler, handler_ctx, TAG_GENRE, album_genre[genre]);
+				handler.OnTag(TAG_GENRE, album_genre[genre]);
 			}
 		}
 	}

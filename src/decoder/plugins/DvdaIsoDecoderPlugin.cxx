@@ -30,7 +30,7 @@
 #include "CheckAudioFormat.hxx"
 #include "tag/Handler.hxx"
 #include "tag/Builder.hxx"
-#include "DetachedSong.hxx"
+#include "song/DetachedSong.hxx"
 #include "fs/Path.hxx"
 #include "fs/AllocatedPath.hxx"
 #include "thread/Cond.hxx"
@@ -179,12 +179,12 @@ dvdaiso_update_ifo(const char* path) {
 }
 
 static void
-dvdaiso_scan_info(unsigned track_index, bool downmix, const TagHandler& handler, void* handler_ctx) {
+dvdaiso_scan_info(unsigned track_index, bool downmix, TagHandler& handler) {
 	string tag_value = to_string(track_index + 1);
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_TRACK, tag_value.c_str());
-	tag_handler_invoke_duration(handler, handler_ctx, SongTime::FromS(dvda_reader->get_duration(track_index)));
-	if (!dvda_metabase || (dvda_metabase && !dvda_metabase->get_info(track_index, downmix, handler, handler_ctx))) {
-		dvda_reader->get_info(track_index, downmix, handler, handler_ctx);
+	handler.OnTag(TAG_TRACK, tag_value.c_str());
+	handler.OnDuration(SongTime::FromS(dvda_reader->get_duration(track_index)));
+	if (!dvda_metabase || (dvda_metabase && !dvda_metabase->get_info(track_index, downmix, handler))) {
+		dvda_reader->get_info(track_index, downmix, handler);
 	}
 }
 
@@ -210,7 +210,7 @@ dvdaiso_init(const ConfigBlock& block) {
 }
 
 static void
-dvdaiso_finish() {
+dvdaiso_finish() noexcept {
 	dvdaiso_update_ifo(nullptr);
 	my_av_log_set_default_callback();
 }
@@ -255,13 +255,15 @@ dvdaiso_container_scan(Path path_fs) {
 				break;
 			}
 			if (add_track) {
-				dvdaiso_scan_info(track_index, false, add_tag_handler, &tag_builder);
+				AddTagHandler h(tag_builder);
+				dvdaiso_scan_info(track_index, false, h);
 				auto area = dvda_reader->get_channels() > 2 ? 'M' : 'S';
 				sprintf(track_name, DVDA_TRACKXXX_FMT, track_index + 1, area, suffix);
 				tail = list.emplace_after(tail, track_name, tag_builder.Commit());
 			}
 			if (add_downmix) {
-				dvdaiso_scan_info(track_index, true, add_tag_handler, &tag_builder);
+				AddTagHandler h(tag_builder);
+				dvdaiso_scan_info(track_index, true, h);
 				auto area = 'D';
 				sprintf(track_name, DVDA_TRACKXXX_FMT, track_index + 1, area, suffix);
 				tail = list.emplace_after(tail, track_name, tag_builder.Commit());
@@ -335,7 +337,7 @@ dvdaiso_file_decode(DecoderClient &client, Path path_fs) {
 }
 
 static bool
-dvdaiso_scan_file(Path path_fs, const struct TagHandler& handler, void* handler_ctx) {
+dvdaiso_scan_file(Path path_fs, TagHandler& handler) noexcept {
 	string path_container = get_container_path(path_fs.c_str());
 	if (path_container.empty()) {
 		return false;
@@ -349,7 +351,7 @@ dvdaiso_scan_file(Path path_fs, const struct TagHandler& handler, void* handler_
 		LogError(dvdaiso_domain, "cannot get track number");
 		return false;
 	}
-	dvdaiso_scan_info(track_index, downmix, handler, handler_ctx);
+	dvdaiso_scan_info(track_index, downmix, handler);
 	return true;
 }
 

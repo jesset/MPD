@@ -65,8 +65,7 @@ public:
 
 class dvda_media_stream_t : public dvda_media_t {
 	Mutex mutex;
-	Cond cond;
-    InputStreamPtr is;
+	InputStreamPtr is;
 public:
 	dvda_media_stream_t();
 	~dvda_media_stream_t();

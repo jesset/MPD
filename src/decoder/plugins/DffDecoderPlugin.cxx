@@ -29,7 +29,7 @@
 #include "CheckAudioFormat.hxx"
 #include "tag/Handler.hxx"
 #include "tag/Builder.hxx"
-#include "DetachedSong.hxx"
+#include "song/DetachedSong.hxx"
 #include "fs/Path.hxx"
 #include "fs/AllocatedPath.hxx"
 #include "thread/Cond.hxx"
@@ -162,13 +162,13 @@ dsdiff_update_toc(const char* path) {
 }
 
 static void
-dsdiff_scan_info(unsigned track, const TagHandler& handler, void* handler_ctx) {
+dsdiff_scan_info(unsigned track, TagHandler& handler) {
 	string tag_value = to_string(track + 1);
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_TRACK, tag_value.c_str());
-	tag_handler_invoke_duration(handler, handler_ctx, SongTime::FromS(sacd_reader->get_duration(track)));
-	sacd_reader->get_info(track, handler, handler_ctx);
+	handler.OnTag(TAG_TRACK, tag_value.c_str());
+	handler.OnDuration(SongTime::FromS(sacd_reader->get_duration(track)));
+	sacd_reader->get_info(track, handler);
 	auto track_format = sacd_reader->is_dst() ? "DST" : "DSD";
-	tag_handler_invoke_pair(handler, handler_ctx, "codec", track_format);
+	handler.OnPair("codec", track_format);
 }
 
 static bool
@@ -192,7 +192,7 @@ dsdiff_init(const ConfigBlock& block) {
 }
 
 static void
-dsdiff_finish() {
+dsdiff_finish() noexcept {
 	dsdiff_update_toc(nullptr);
 }
 
@@ -220,7 +220,8 @@ dsdiff_container_scan(Path path_fs) {
 	if (twoch_count > 0 && param_playable_area != AREA_MULCH) {
 		sacd_reader->select_area(AREA_TWOCH);
 		for (unsigned track = 0; track < twoch_count; track++) {
-			dsdiff_scan_info(track, add_tag_handler, &tag_builder);
+			AddTagHandler h(tag_builder);
+			dsdiff_scan_info(track, h);
 			sprintf(track_name, DSDIFF_TRACKXXX_FMT, '2', track + 1, suffix);
 			tail = list.emplace_after(tail, track_name, tag_builder.Commit());
 		}
@@ -228,7 +229,8 @@ dsdiff_container_scan(Path path_fs) {
 	if (mulch_count > 0 && param_playable_area != AREA_TWOCH) {
 		sacd_reader->select_area(AREA_MULCH);
 		for (unsigned track = 0; track < mulch_count; track++) {
-			dsdiff_scan_info(track, add_tag_handler, &tag_builder);
+			AddTagHandler h(tag_builder);
+			dsdiff_scan_info(track, h);
 			sprintf(track_name, DSDIFF_TRACKXXX_FMT, 'M', track + twoch_count + 1, suffix);
 			tail = list.emplace_after(tail, track_name, tag_builder.Commit());
 		}
@@ -375,7 +377,7 @@ dsdiff_file_decode(DecoderClient &client, Path path_fs) {
 }
 
 static bool
-dsdiff_scan_file(Path path_fs, const struct TagHandler& handler, void* handler_ctx) {
+dsdiff_scan_file(Path path_fs, TagHandler& handler) noexcept {
 	string path_container = get_container_path(path_fs.c_str());
 	if (path_container.empty() || !dsdiff_update_toc(path_container.c_str())) {
 		return false;
@@ -396,7 +398,7 @@ dsdiff_scan_file(Path path_fs, const struct TagHandler& handler, void* handler_c
 			return false;
 		}
 	}
-	dsdiff_scan_info(track, handler, handler_ctx);
+	dsdiff_scan_info(track, handler);
 	return true;
 }
 

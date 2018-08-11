@@ -437,10 +437,10 @@ bool sacd_dsdiff_t::seek(double seconds) {
 	return true;
 }
 
-void sacd_dsdiff_t::get_info(uint32_t _track_index, const struct TagHandler& handler, void* handler_ctx) {
+void sacd_dsdiff_t::get_info(uint32_t _track_index, TagHandler& handler) {
 	for (uint32_t i = 0; i < id3tags.size(); i++) {
 		if (_track_index == id3tags[i].index) {
-			get_id3tags(_track_index, handler, handler_ctx);
+			get_id3tags(_track_index, handler);
 			break;
 		}
 	}
@@ -458,7 +458,7 @@ uint64_t sacd_dsdiff_t::get_dsti_for_frame(uint32_t frame_nr) {
 	return hton64(frame_index.offset) - sizeof(Chunk);
 }
 
-void sacd_dsdiff_t::get_id3tags(uint32_t _track_index, const struct TagHandler& handler, void* handler_ctx) {
+void sacd_dsdiff_t::get_id3tags(uint32_t _track_index, TagHandler& handler) {
 #ifdef ENABLE_ID3TAG
 	if (id3tags[_track_index].size > 0) {
 		id3_byte_t* dsdid3 = (id3_byte_t*)&id3tags[_track_index].data[0];
@@ -469,7 +469,7 @@ void sacd_dsdiff_t::get_id3tags(uint32_t _track_index, const struct TagHandler& 
 				//scan_id3_tag(id3_tag, handler, handler_ctx);
 			}
 			else {
-				scan_id3_tag(id3_tag, handler, handler_ctx);
+				scan_id3_tag(id3_tag, handler);
 			}
 			id3_tag_delete(id3_tag);
 		}

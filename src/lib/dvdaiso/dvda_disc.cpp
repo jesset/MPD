@@ -84,7 +84,7 @@ bool dvda_disc_t::can_downmix() {
 	return track_list[sel_track_index].audio_stream_info.can_downmix;
 }
 
-void dvda_disc_t::get_info(uint32_t track_index, bool downmix, const struct TagHandler& handler, void* handler_ctx) {
+void dvda_disc_t::get_info(uint32_t track_index, bool downmix, TagHandler& handler) {
 	if (!(track_index < track_list.size())) {
 		return;
 	}
@@ -107,7 +107,7 @@ void dvda_disc_t::get_info(uint32_t track_index, bool downmix, const struct TagH
 
 	string tag_value;
 	tag_value  = label_ok ? disc_label : "DVD-Audio";
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_DISC, tag_value.c_str());
+	handler.OnTag(TAG_DISC, tag_value.c_str());
 
 	tag_value  = !disc_name.empty() ? disc_name : "Album";
 	tag_value += " (";
@@ -121,10 +121,10 @@ void dvda_disc_t::get_info(uint32_t track_index, bool downmix, const struct TagH
 	tag_value += "-";
 	tag_value += info.stream_id == MLP_STREAM_ID ? (info.stream_type == STREAM_TYPE_MLP ? "MLP" : "TrueHD") : "PCM";
 	tag_value += ")";
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_ALBUM, tag_value.c_str());
+	handler.OnTag(TAG_ALBUM, tag_value.c_str());
 
 	tag_value  = "Artist";
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_ARTIST, tag_value.c_str());
+	handler.OnTag(TAG_ARTIST, tag_value.c_str());
 
 	char track_number_string[16];
 	//sprintf(track_number_string, "%02d.%02d.%02d", ts, ti, tr);
@@ -165,16 +165,16 @@ void dvda_disc_t::get_info(uint32_t track_index, bool downmix, const struct TagH
 		tag_value += to_string(info.group1_samplerate);
 	}
 	tag_value += ")";
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_TITLE, tag_value.c_str());
+	handler.OnTag(TAG_TITLE, tag_value.c_str());
 
 	tag_value  = "Composer";
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_COMPOSER, tag_value.c_str());
+	handler.OnTag(TAG_COMPOSER, tag_value.c_str());
 
 	tag_value  = "Performer";
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_PERFORMER, tag_value.c_str());
+	handler.OnTag(TAG_PERFORMER, tag_value.c_str());
 
 	tag_value  = "Genre";
-	tag_handler_invoke_tag(handler, handler_ctx, TAG_GENRE, tag_value.c_str());
+	handler.OnTag(TAG_GENRE, tag_value.c_str());
 }
 
 bool dvda_disc_t::open(dvda_media_t* _dvda_media) {

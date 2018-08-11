@@ -101,7 +101,7 @@ sacd_media_stream_t::~sacd_media_stream_t() {
 
 bool sacd_media_stream_t::open(const char* path) {
 	try {
-		is = InputStream::OpenReady(path, mutex, cond);
+		is = InputStream::OpenReady(path, mutex);
 	}
 	catch (const std::runtime_error &e) {
 		LogError(e);

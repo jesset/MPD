@@ -120,7 +120,7 @@ int64_t dvda_media_stream_t::get_size() {
 
 bool dvda_media_stream_t::open(const char* path) {
 	try {
-		is = InputStream::OpenReady(path, mutex, cond);
+		is = InputStream::OpenReady(path, mutex);
 	}
 	catch (const std::exception &e) {
 		LogError(e);

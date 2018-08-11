@@ -80,7 +80,7 @@ dvda_metabase_t::~dvda_metabase_t() {
 	}
 }
 
-bool dvda_metabase_t::get_info(uint32_t track_index, bool downmix, const struct TagHandler& handler, void* handler_ctx) {
+bool dvda_metabase_t::get_info(uint32_t track_index, bool downmix, TagHandler& handler) {
 	if (!metabase_loaded) {
 		return false;
 	}
@@ -126,7 +126,7 @@ bool dvda_metabase_t::get_info(uint32_t track_index, bool downmix, const struct 
 									tag_value += " (stereo downmix)";
 								}
 							}
-							tag_handler_invoke_tag(handler, handler_ctx, tag_type, tag_value.c_str());
+							handler.OnTag(tag_type, tag_value.c_str());
 						}
 					}
 				}
