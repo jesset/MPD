@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "lib/alsa/NonBlock.hxx"
 #include "mixer/MixerInternal.hxx"
 #include "mixer/Listener.hxx"
@@ -26,7 +25,6 @@
 #include "event/DeferEvent.hxx"
 #include "event/Call.hxx"
 #include "util/ASCII.hxx"
-#include "util/ReusableArray.hxx"
 #include "util/Domain.hxx"
 #include "util/RuntimeError.hxx"
 #include "Log.hxx"
@@ -48,7 +46,7 @@ class AlsaMixerMonitor final : MultiSocketMonitor {
 
 	snd_mixer_t *mixer;
 
-	ReusableArray<pollfd> pfd_buffer;
+	AlsaNonBlockMixer non_block;
 
 public:
 	AlsaMixerMonitor(EventLoop &_loop, snd_mixer_t *_mixer)
@@ -110,13 +108,15 @@ AlsaMixerMonitor::PrepareSockets() noexcept
 		return std::chrono::steady_clock::duration(-1);
 	}
 
-	return PrepareAlsaMixerSockets(*this, mixer, pfd_buffer);
+	return non_block.PrepareSockets(*this, mixer);
 }
 
 void
 AlsaMixerMonitor::DispatchSockets() noexcept
 {
 	assert(mixer != nullptr);
+
+	non_block.DispatchSockets(*this, mixer);
 
 	int err = snd_mixer_handle_events(mixer);
 	if (err < 0) {

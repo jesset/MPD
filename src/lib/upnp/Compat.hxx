@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -30,7 +30,7 @@ using UpnpDiscovery = Upnp_Discovery;
 #endif
 
 #if UPNP_VERSION < 10624
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 gcc_pure
 static inline int

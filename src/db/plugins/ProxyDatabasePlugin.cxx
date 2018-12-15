@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,12 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "ProxyDatabasePlugin.hxx"
 #include "db/Interface.hxx"
 #include "db/DatabasePlugin.hxx"
 #include "db/DatabaseListener.hxx"
 #include "db/Selection.hxx"
+#include "db/VHelper.hxx"
 #include "db/DatabaseError.hxx"
 #include "db/PlaylistInfo.hxx"
 #include "db/LightDirectory.hxx"
@@ -32,7 +32,7 @@
 #include "song/UriSongFilter.hxx"
 #include "song/BaseSongFilter.hxx"
 #include "song/TagSongFilter.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 #include "config/Block.hxx"
 #include "tag/Builder.hxx"
 #include "tag/Tag.hxx"
@@ -118,18 +118,18 @@ public:
 				const ConfigBlock &block);
 
 	void Open() override;
-	void Close() override;
+	void Close() noexcept override;
 	const LightSong *GetSong(const char *uri_utf8) const override;
-	void ReturnSong(const LightSong *song) const override;
+	void ReturnSong(const LightSong *song) const noexcept override;
 
 	void Visit(const DatabaseSelection &selection,
 		   VisitDirectory visit_directory,
 		   VisitSong visit_song,
 		   VisitPlaylist visit_playlist) const override;
 
-	void VisitUniqueTags(const DatabaseSelection &selection,
-			     TagType tag_type, TagMask group_mask,
-			     VisitTag visit_tag) const override;
+	std::map<std::string, std::set<std::string>> CollectUniqueTags(const DatabaseSelection &selection,
+								       TagType tag_type,
+								       TagType group) const override;
 
 	DatabaseStats GetStats(const DatabaseSelection &selection) const override;
 
@@ -144,7 +144,7 @@ private:
 	void CheckConnection();
 	void EnsureConnected();
 
-	void Disconnect();
+	void Disconnect() noexcept;
 
 	/* virtual methods from SocketMonitor */
 	bool OnSocketReady(unsigned flags) noexcept override;
@@ -193,7 +193,7 @@ static constexpr struct {
 
 static void
 Copy(TagBuilder &tag, TagType d_tag,
-     const struct mpd_song *song, enum mpd_tag_type s_tag)
+     const struct mpd_song *song, enum mpd_tag_type s_tag) noexcept
 {
 
 	for (unsigned i = 0;; ++i) {
@@ -212,9 +212,45 @@ ProxySong::ProxySong(const mpd_song *song)
 	if (_mtime > 0)
 		mtime = std::chrono::system_clock::from_time_t(_mtime);
 
-#if LIBMPDCLIENT_CHECK_VERSION(2,3,0)
 	start_time = SongTime::FromS(mpd_song_get_start(song));
 	end_time = SongTime::FromS(mpd_song_get_end(song));
+
+#if LIBMPDCLIENT_CHECK_VERSION(2,15,0)
+	const auto *af = mpd_song_get_audio_format(song);
+	if (af != nullptr) {
+		if (audio_valid_sample_rate(af->sample_rate))
+			audio_format.sample_rate = af->sample_rate;
+
+
+		switch (af->bits) {
+		case MPD_SAMPLE_FORMAT_FLOAT:
+			audio_format.format = SampleFormat::FLOAT;
+			break;
+
+		case MPD_SAMPLE_FORMAT_DSD:
+			audio_format.format = SampleFormat::DSD;
+			break;
+
+		case 8:
+			audio_format.format = SampleFormat::S8;
+			break;
+
+		case 16:
+			audio_format.format = SampleFormat::S16;
+			break;
+
+		case 24:
+			audio_format.format = SampleFormat::S24_P32;
+			break;
+
+		case 32:
+			audio_format.format = SampleFormat::S32;
+			break;
+		}
+
+		if (audio_valid_channel_count(af->channels))
+			audio_format.channels = af->channels;
+	}
 #endif
 
 	TagBuilder tag_builder;
@@ -299,16 +335,10 @@ SendConstraints(mpd_connection *connection, const ISongFilter &f)
 		return mpd_search_add_uri_constraint(connection,
 						     MPD_OPERATOR_DEFAULT,
 						     u->GetValue().c_str());
-#if LIBMPDCLIENT_CHECK_VERSION(2,9,0)
 	} else if (auto b = dynamic_cast<const BaseSongFilter *>(&f)) {
-		if (mpd_connection_cmp_server_version(connection, 0, 18, 0) < 0)
-			/* requires MPD 0.18 */
-			return true;
-
 		return mpd_search_add_base_constraint(connection,
 						      MPD_OPERATOR_DEFAULT,
 						      b->GetValue());
-#endif
 	} else
 		return true;
 }
@@ -316,6 +346,14 @@ SendConstraints(mpd_connection *connection, const ISongFilter &f)
 static bool
 SendConstraints(mpd_connection *connection, const SongFilter &filter)
 {
+#if LIBMPDCLIENT_CHECK_VERSION(2, 15, 0)
+	if (mpd_connection_cmp_server_version(connection, 0, 21, 0) >= 0)
+		/* with MPD 0.21 (and libmpdclient 2.15), we can pass
+		   arbitrary filters as expression */
+		return mpd_search_add_expression(connection,
+						 filter.ToExpression().c_str());
+#endif
+
 	for (const auto &i : filter.GetItems())
 		if (!SendConstraints(connection, *i))
 			return false;
@@ -326,50 +364,67 @@ SendConstraints(mpd_connection *connection, const SongFilter &filter)
 static bool
 SendConstraints(mpd_connection *connection, const DatabaseSelection &selection)
 {
-#if LIBMPDCLIENT_CHECK_VERSION(2,9,0)
 	if (!selection.uri.empty() &&
-	    mpd_connection_cmp_server_version(connection, 0, 18, 0) >= 0) {
-		/* requires MPD 0.18 */
-		if (!mpd_search_add_base_constraint(connection,
-						    MPD_OPERATOR_DEFAULT,
-						    selection.uri.c_str()))
-			return false;
-	}
-#endif
+	    !mpd_search_add_base_constraint(connection,
+					    MPD_OPERATOR_DEFAULT,
+					    selection.uri.c_str()))
+		return false;
 
 	if (selection.filter != nullptr &&
 	    !SendConstraints(connection, *selection.filter))
 		return false;
 
+#if LIBMPDCLIENT_CHECK_VERSION(2, 11, 0)
+	if (selection.sort != TAG_NUM_OF_ITEM_TYPES &&
+	    mpd_connection_cmp_server_version(connection, 0, 21, 0) >= 0) {
+#if LIBMPDCLIENT_CHECK_VERSION(2, 15, 0)
+		if (selection.sort == SORT_TAG_LAST_MODIFIED) {
+			if (!mpd_search_add_sort_name(connection, "Last-Modified",
+						      selection.descending))
+				return false;
+		} else {
+#endif
+			const auto sort = Convert(selection.sort);
+			/* if this is an unsupported tag, the sort
+			   will be done later by class
+			   DatabaseVisitorHelper */
+			if (sort != MPD_TAG_COUNT &&
+			    !mpd_search_add_sort_tag(connection, sort,
+						     selection.descending))
+				return false;
+#if LIBMPDCLIENT_CHECK_VERSION(2, 15, 0)
+		}
+#endif
+	}
+#endif
+
+#if LIBMPDCLIENT_CHECK_VERSION(2, 10, 0)
+	if (selection.window != RangeArg::All() &&
+	    mpd_connection_cmp_server_version(connection, 0, 20, 0) >= 0 &&
+	    !mpd_search_add_window(connection, selection.window.start,
+				   selection.window.end))
+		return false;
+#endif
+
 	return true;
 }
 
 static bool
-SendGroupMask(mpd_connection *connection, TagMask mask)
+SendGroup(mpd_connection *connection, TagType group)
 {
+	if (group == TAG_NUM_OF_ITEM_TYPES)
+		return true;
+
 #if LIBMPDCLIENT_CHECK_VERSION(2,12,0)
-	for (unsigned i = 0; i < TAG_NUM_OF_ITEM_TYPES; ++i) {
-		const auto tag_type = TagType(i);
-		if (!mask.Test(tag_type))
-			continue;
+	const auto tag = Convert(group);
+	if (tag == MPD_TAG_COUNT)
+		throw std::runtime_error("Unsupported tag");
 
-		const auto tag = Convert(tag_type);
-		if (tag == MPD_TAG_COUNT)
-			throw std::runtime_error("Unsupported tag");
-
-		if (!mpd_search_add_group_tag(connection, tag))
-			return false;
-	}
-
-	return true;
+	return mpd_search_add_group_tag(connection, tag);
 #else
 	(void)connection;
-	(void)mask;
 
-	if (mask.TestAny())
-		throw std::runtime_error("Grouping requires libmpdclient 2.12");
-
-	return true;
+	throw std::runtime_error("Grouping requires libmpdclient 2.12");
 #endif
 }
 
@@ -408,7 +463,7 @@ ProxyDatabase::Open()
 }
 
 void
-ProxyDatabase::Close()
+ProxyDatabase::Close() noexcept
 {
 	if (connection != nullptr)
 		Disconnect();
@@ -424,6 +479,10 @@ ProxyDatabase::Connect()
 
 	try {
 		CheckError(connection);
+
+		if (mpd_connection_cmp_server_version(connection, 0, 19, 0) < 0)
+			throw FormatRuntimeError("Connect to MPD %s, but this plugin requires at least version 0.19",
+						 mpd_connection_get_server_version(connection));
 
 		if (!password.empty() &&
 		    !mpd_run_password(connection, password.c_str()))
@@ -445,7 +504,7 @@ ProxyDatabase::Connect()
 	(void)keepalive;
 #endif
 
-	idle_received = unsigned(-1);
+	idle_received = ~0u;
 	is_idle = false;
 
 	SocketMonitor::Open(SocketDescriptor(mpd_async_get_fd(mpd_connection_get_async(connection))));
@@ -490,7 +549,7 @@ ProxyDatabase::EnsureConnected()
 }
 
 void
-ProxyDatabase::Disconnect()
+ProxyDatabase::Disconnect() noexcept
 {
 	assert(connection != nullptr);
 
@@ -589,7 +648,7 @@ ProxyDatabase::GetSong(const char *uri) const
 }
 
 void
-ProxyDatabase::ReturnSong(const LightSong *_song) const
+ProxyDatabase::ReturnSong(const LightSong *_song) const noexcept
 {
 	assert(_song != nullptr);
 
@@ -615,11 +674,9 @@ Visit(struct mpd_connection *connection,
 
 	std::chrono::system_clock::time_point mtime =
 		std::chrono::system_clock::time_point::min();
-#if LIBMPDCLIENT_CHECK_VERSION(2,9,0)
 	time_t _mtime = mpd_directory_get_last_modified(directory);
 	if (_mtime > 0)
 		mtime = std::chrono::system_clock::from_time_t(_mtime);
-#endif
 
 	if (visit_directory)
 		visit_directory(LightDirectory(path, mtime));
@@ -670,30 +727,30 @@ class ProxyEntity {
 	struct mpd_entity *entity;
 
 public:
-	explicit ProxyEntity(struct mpd_entity *_entity)
+	explicit ProxyEntity(struct mpd_entity *_entity) noexcept
 		:entity(_entity) {}
 
 	ProxyEntity(const ProxyEntity &other) = delete;
 
-	ProxyEntity(ProxyEntity &&other)
+	ProxyEntity(ProxyEntity &&other) noexcept
 		:entity(other.entity) {
 		other.entity = nullptr;
 	}
 
-	~ProxyEntity() {
+	~ProxyEntity() noexcept {
 		if (entity != nullptr)
 			mpd_entity_free(entity);
 	}
 
 	ProxyEntity &operator=(const ProxyEntity &other) = delete;
 
-	operator const struct mpd_entity *() const {
+	operator const struct mpd_entity *() const noexcept {
 		return entity;
 	}
 };
 
 static std::list<ProxyEntity>
-ReceiveEntities(struct mpd_connection *connection)
+ReceiveEntities(struct mpd_connection *connection) noexcept
 {
 	std::list<ProxyEntity> entities;
 	struct mpd_entity *entity;
@@ -777,21 +834,122 @@ try {
 	throw;
 }
 
-/**
- * Check whether we can use the "base" constraint.  Requires
- * libmpdclient 2.9 and MPD 0.18.
- */
+#if LIBMPDCLIENT_CHECK_VERSION(2, 10, 0)
+
 gcc_pure
 static bool
-ServerSupportsSearchBase(const struct mpd_connection *connection) noexcept
+IsFilterSupported(const ISongFilter &f) noexcept
 {
-#if LIBMPDCLIENT_CHECK_VERSION(2,9,0)
-	return mpd_connection_cmp_server_version(connection, 0, 18, 0) >= 0;
+	if (auto t = dynamic_cast<const TagSongFilter *>(&f)) {
+		if (t->IsNegated())
+			// TODO implement
+			return false;
+
+		if (t->GetTagType() == TAG_NUM_OF_ITEM_TYPES)
+			return true;
+
+		const auto tag = Convert(t->GetTagType());
+		if (tag == MPD_TAG_COUNT)
+			return false;
+
+		return true;
+	} else if (auto u = dynamic_cast<const UriSongFilter *>(&f)) {
+		if (u->IsNegated())
+			// TODO implement
+			return false;
+
+		return false;
+	} else if (dynamic_cast<const BaseSongFilter *>(&f)) {
+		return true;
+	} else
+		return false;
+}
+
+gcc_pure
+static bool
+IsFilterFullySupported(const SongFilter &filter,
+		       const struct mpd_connection *connection) noexcept
+{
+#if LIBMPDCLIENT_CHECK_VERSION(2, 15, 0)
+	if (mpd_connection_cmp_server_version(connection, 0, 21, 0) >= 0)
+		/* with MPD 0.21 (and libmpdclient 2.15), we can pass
+		   arbitrary filters as expression */
+		return true;
 #else
 	(void)connection;
-
-	return false;
 #endif
+
+	for (const auto &i : filter.GetItems())
+		if (!IsFilterSupported(*i))
+			return false;
+
+	return true;
+}
+
+gcc_pure
+static bool
+IsFilterFullySupported(const SongFilter *filter,
+		       const struct mpd_connection *connection) noexcept
+{
+	return filter == nullptr ||
+		IsFilterFullySupported(*filter, connection);
+}
+
+#endif
+
+#if LIBMPDCLIENT_CHECK_VERSION(2, 11, 0)
+
+gcc_pure
+static bool
+IsSortSupported(TagType tag_type,
+		const struct mpd_connection *connection) noexcept
+{
+	if (mpd_connection_cmp_server_version(connection, 0, 21, 0) < 0)
+		/* sorting requires MPD 0.21 */
+		return false;
+
+	if (tag_type == TagType(SORT_TAG_LAST_MODIFIED)) {
+		/* sort "Last-Modified" requires libmpdclient 2.15 for
+		   mpd_search_add_sort_name() */
+#if LIBMPDCLIENT_CHECK_VERSION(2, 15, 0)
+		return true;
+#else
+		return false;
+#endif
+	}
+
+	return Convert(tag_type) != MPD_TAG_COUNT;
+}
+
+#endif
+
+gcc_pure
+static DatabaseSelection
+CheckSelection(DatabaseSelection selection,
+	       struct mpd_connection *connection) noexcept
+{
+	selection.uri.clear();
+	selection.filter = nullptr;
+
+#if LIBMPDCLIENT_CHECK_VERSION(2, 11, 0)
+	if (selection.sort != TAG_NUM_OF_ITEM_TYPES &&
+	    IsSortSupported(selection.sort, connection))
+		/* we can forward the "sort" parameter to the other
+		   MPD */
+		selection.sort = TAG_NUM_OF_ITEM_TYPES;
+#endif
+
+#if LIBMPDCLIENT_CHECK_VERSION(2, 10, 0)
+	if (selection.window != RangeArg::All() &&
+	    IsFilterFullySupported(selection.filter, connection))
+		/* we can forward the "window" parameter to the other
+		   MPD */
+		selection.window = RangeArg::All();
+#else
+	(void)connection;
+#endif
+
+	return selection;
 }
 
 void
@@ -803,13 +961,15 @@ ProxyDatabase::Visit(const DatabaseSelection &selection,
 	// TODO: eliminate the const_cast
 	const_cast<ProxyDatabase *>(this)->EnsureConnected();
 
+	DatabaseVisitorHelper helper(CheckSelection(selection, connection),
+				     visit_song);
+
 	if (!visit_directory && !visit_playlist && selection.recursive &&
-	    (ServerSupportsSearchBase(connection)
-	     ? !selection.IsEmpty()
-	     : selection.HasOtherThanBase())) {
+	    !selection.IsEmpty()) {
 		/* this optimized code path can only be used under
 		   certain conditions */
 		::SearchSongs(connection, selection, visit_song);
+		helper.Commit();
 		return;
 	}
 
@@ -817,13 +977,13 @@ ProxyDatabase::Visit(const DatabaseSelection &selection,
 	::Visit(connection, selection.uri.c_str(),
 		selection.recursive, selection.filter,
 		visit_directory, visit_song, visit_playlist);
+
+	helper.Commit();
 }
 
-void
-ProxyDatabase::VisitUniqueTags(const DatabaseSelection &selection,
-			       TagType tag_type,
-			       TagMask group_mask,
-			       VisitTag visit_tag) const
+std::map<std::string, std::set<std::string>>
+ProxyDatabase::CollectUniqueTags(const DatabaseSelection &selection,
+				 TagType tag_type, TagType group) const
 try {
 	// TODO: eliminate the const_cast
 	const_cast<ProxyDatabase *>(this)->EnsureConnected();
@@ -834,54 +994,56 @@ try {
 
 	if (!mpd_search_db_tags(connection, tag_type2) ||
 	    !SendConstraints(connection, selection) ||
-	    !SendGroupMask(connection, group_mask))
+	    !SendGroup(connection, group))
 		ThrowError(connection);
 
 	if (!mpd_search_commit(connection))
 		ThrowError(connection);
 
-	TagBuilder builder;
+	std::map<std::string, std::set<std::string>> result;
 
-	while (auto *pair = mpd_recv_pair(connection)) {
-		AtScopeExit(this, pair) {
-			mpd_return_pair(connection, pair);
-		};
+	if (group == TAG_NUM_OF_ITEM_TYPES) {
+		auto &values = result[std::string()];
 
-		const auto current_type = tag_name_parse_i(pair->name);
-		if (current_type == TAG_NUM_OF_ITEM_TYPES)
-			continue;
+		while (auto *pair = mpd_recv_pair(connection)) {
+			AtScopeExit(this, pair) {
+				mpd_return_pair(connection, pair);
+			};
 
-		if (current_type == tag_type && !builder.empty()) {
-			try {
-				visit_tag(builder.Commit());
-			} catch (...) {
-				mpd_response_finish(connection);
-				throw;
-			}
+			const auto current_type = tag_name_parse_i(pair->name);
+			if (current_type == TAG_NUM_OF_ITEM_TYPES)
+				continue;
+
+			if (current_type == tag_type)
+				values.emplace(pair->value);
 		}
+	} else {
+		std::set<std::string> *current_group = nullptr;
 
-		builder.AddItem(current_type, pair->value);
+		while (auto *pair = mpd_recv_pair(connection)) {
+			AtScopeExit(this, pair) {
+				mpd_return_pair(connection, pair);
+			};
 
-		if (!builder.HasType(current_type))
-			/* if no tag item has been added, then the
-			   given value was not acceptable
-			   (e.g. empty); forcefully insert an empty
-			   tag in this case, as the caller expects the
-			   given tag type to be present */
-			builder.AddEmptyItem(current_type);
-	}
+			const auto current_type = tag_name_parse_i(pair->name);
+			if (current_type == TAG_NUM_OF_ITEM_TYPES)
+				continue;
 
-	if (!builder.empty()) {
-		try {
-			visit_tag(builder.Commit());
-		} catch (...) {
-			mpd_response_finish(connection);
-			throw;
+			if (current_type == tag_type) {
+				if (current_group == nullptr)
+					current_group = &result[std::string()];
+
+				current_group->emplace(pair->value);
+			} else if (current_type == group) {
+				current_group = &result[pair->value];
+			}
 		}
 	}
 
 	if (!mpd_response_finish(connection))
 		ThrowError(connection);
+
+	return result;
 } catch (...) {
 	if (connection != nullptr)
 		mpd_search_cancel(connection);

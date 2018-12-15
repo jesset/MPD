@@ -17,15 +17,15 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "BaseSongFilter.hxx"
+#include "Escape.hxx"
 #include "LightSong.hxx"
 #include "util/UriUtil.hxx"
 
 std::string
 BaseSongFilter::ToExpression() const noexcept
 {
-	return "(base \"" + value + "\")";
+	return "(base \"" + EscapeFilterString(value) + "\")";
 }
 
 bool

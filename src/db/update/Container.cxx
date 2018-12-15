@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h" /* must be first for large file support */
 #include "Walk.hxx"
 #include "UpdateDomain.hxx"
 #include "song/DetachedSong.hxx"
@@ -71,13 +70,14 @@ SupportsContainerSuffix(const DecoderPlugin &plugin,
 
 bool
 UpdateWalk::UpdateContainerFile(Directory &directory,
-				const char *name, const char *suffix,
-				const StorageFileInfo &info) noexcept
+                const char *name, const char *suffix,
+                const StorageFileInfo &info) noexcept
 {
 	std::list<const DecoderPlugin *> plugins;
 	for (unsigned i = 0; decoder_plugins[i] != nullptr; ++i)
 		if (decoder_plugins_enabled[i] && SupportsContainerSuffix(*decoder_plugins[i], suffix))
 			plugins.push_back(decoder_plugins[i]);
+
 	if (plugins.empty())
 		return false;
 

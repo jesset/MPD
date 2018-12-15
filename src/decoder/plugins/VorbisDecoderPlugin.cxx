@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -298,7 +298,7 @@ VorbisDecoder::OnOggPacket(const ogg_packet &_packet)
 
 #ifndef HAVE_TREMOR
 		if (packet.granulepos > 0)
-			client.SubmitTimestamp(vorbis_granule_time(&dsp, packet.granulepos));
+			client.SubmitTimestamp(FloatDuration(vorbis_granule_time(&dsp, packet.granulepos)));
 #endif
 	}
 }

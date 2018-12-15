@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,12 +20,11 @@
 #ifndef MPD_UPDATE_SERVICE_HXX
 #define MPD_UPDATE_SERVICE_HXX
 
-#include "check.h"
 #include "Config.hxx"
 #include "Queue.hxx"
 #include "event/DeferEvent.hxx"
 #include "thread/Thread.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 class SimpleDatabase;
 class DatabaseListener;
@@ -82,9 +81,11 @@ public:
 	/**
 	 * Add this path to the database update queue.
 	 *
+	 * Throws on error
+	 *
 	 * @param path a path to update; if an empty string,
 	 * the whole music directory is updated
-	 * @return the job id, or 0 on error
+	 * @return the job id
 	 */
 	gcc_nonnull_all
 	unsigned Enqueue(const char *path, bool discard);

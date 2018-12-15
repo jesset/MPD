@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "NfsInputPlugin.hxx"
 #include "../AsyncInputStream.hxx"
 #include "../InputPlugin.hxx"
@@ -217,16 +216,19 @@ static InputStreamPtr
 input_nfs_open(const char *uri,
 	       Mutex &mutex)
 {
-	if (!StringStartsWithCaseASCII(uri, "nfs://"))
-		return nullptr;
-
 	auto is = std::make_unique<NfsInputStream>(uri, mutex);
 	is->Open();
 	return is;
 }
 
+static constexpr const char *nfs_prefixes[] = {
+	"nfs://",
+	nullptr
+};
+
 const InputPlugin input_plugin_nfs = {
 	"nfs",
+	nfs_prefixes,
 	input_nfs_init,
 	input_nfs_finish,
 	input_nfs_open,

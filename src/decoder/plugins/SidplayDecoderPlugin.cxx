@@ -26,7 +26,7 @@
 #include "fs/Path.hxx"
 #include "fs/AllocatedPath.hxx"
 #ifdef HAVE_SIDPLAYFP
-#include "fs/io/FileReader.cxx"
+#include "fs/io/FileReader.hxx"
 #include "util/RuntimeError.hxx"
 #endif
 #include "util/Macros.hxx"
@@ -403,7 +403,7 @@ sidplay_file_decode(DecoderClient &client, Path path_fs)
 		const size_t nbytes = result;
 #endif
 
-		client.SubmitTimestamp((double)player.time() / timebase);
+		client.SubmitTimestamp(FloatDuration(player.time()) / timebase);
 
 		cmd = client.SubmitData(nullptr, buffer, nbytes, 0);
 

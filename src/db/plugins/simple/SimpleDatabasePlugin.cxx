@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,7 @@
 #include "db/Helpers.hxx"
 #include "db/Stats.hxx"
 #include "db/UniqueTags.hxx"
+#include "db/VHelper.hxx"
 #include "db/LightDirectory.hxx"
 #include "Directory.hxx"
 #include "Song.hxx"
@@ -72,7 +73,7 @@ inline SimpleDatabase::SimpleDatabase(AllocatedPath &&_path,
 #ifndef ENABLE_ZLIB
 				      gcc_unused
 #endif
-				      bool _compress)
+				      bool _compress) noexcept
 	:Database(simple_db_plugin),
 	 path(std::move(_path)),
 	 path_utf8(path.ToUTF8()),
@@ -187,7 +188,7 @@ SimpleDatabase::Open()
 }
 
 void
-SimpleDatabase::Close()
+SimpleDatabase::Close() noexcept
 {
 	assert(root != nullptr);
 	assert(prefixed_light_song == nullptr);
@@ -247,7 +248,7 @@ SimpleDatabase::GetSong(const char *uri) const
 }
 
 void
-SimpleDatabase::ReturnSong(gcc_unused const LightSong *song) const
+SimpleDatabase::ReturnSong(gcc_unused const LightSong *song) const noexcept
 {
 	assert(song != nullptr);
 	assert(song == &light_song.Get() || song == prefixed_light_song);
@@ -265,6 +266,15 @@ SimpleDatabase::ReturnSong(gcc_unused const LightSong *song) const
 	}
 }
 
+gcc_const
+static DatabaseSelection
+CheckSelection(DatabaseSelection selection) noexcept
+{
+	selection.uri.clear();
+	selection.filter = nullptr;
+	return selection;
+}
+
 void
 SimpleDatabase::Visit(const DatabaseSelection &selection,
 		      VisitDirectory visit_directory,
@@ -280,11 +290,13 @@ SimpleDatabase::Visit(const DatabaseSelection &selection,
 		protect.unlock();
 
 		WalkMount(r.directory->GetPath(), *(r.directory->mounted_database),
-			(r.uri == nullptr)?"":r.uri, selection.recursive, selection.filter,
-			visit_directory, visit_song, visit_playlist);
+			  (r.uri == nullptr)?"":r.uri, selection,
+			  visit_directory, visit_song, visit_playlist);
 
 		return;
 	}
+
+	DatabaseVisitorHelper helper(CheckSelection(selection), visit_song);
 
 	if (r.uri == nullptr) {
 		/* it's a directory */
@@ -295,6 +307,7 @@ SimpleDatabase::Visit(const DatabaseSelection &selection,
 		r.directory->Walk(selection.recursive, selection.filter,
 				  visit_directory, visit_song,
 				  visit_playlist);
+		helper.Commit();
 		return;
 	}
 
@@ -306,6 +319,7 @@ SimpleDatabase::Visit(const DatabaseSelection &selection,
 				if (selection.Match(song2))
 					visit_song(song2);
 
+				helper.Commit();
 				return;
 			}
 		}
@@ -315,12 +329,11 @@ SimpleDatabase::Visit(const DatabaseSelection &selection,
 			    "No such directory");
 }
 
-void
-SimpleDatabase::VisitUniqueTags(const DatabaseSelection &selection,
-				TagType tag_type, TagMask group_mask,
-				VisitTag visit_tag) const
+std::map<std::string, std::set<std::string>>
+SimpleDatabase::CollectUniqueTags(const DatabaseSelection &selection,
+				  TagType tag_type, TagType group) const
 {
-	::VisitUniqueTags(*this, selection, tag_type, group_mask, visit_tag);
+	return ::CollectUniqueTags(*this, selection, tag_type, group);
 }
 
 DatabaseStats
@@ -448,8 +461,8 @@ SimpleDatabase::Mount(const char *local_uri, const char *storage_uri)
 	}
 }
 
-Database *
-SimpleDatabase::LockUmountSteal(const char *uri)
+inline Database *
+SimpleDatabase::LockUmountSteal(const char *uri) noexcept
 {
 	ScopeDatabaseLock protect;
 
@@ -465,7 +478,7 @@ SimpleDatabase::LockUmountSteal(const char *uri)
 }
 
 bool
-SimpleDatabase::Unmount(const char *uri)
+SimpleDatabase::Unmount(const char *uri) noexcept
 {
 	Database *db = LockUmountSteal(uri);
 	if (db == nullptr)

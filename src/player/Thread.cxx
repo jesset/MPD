@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,18 +17,33 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
-#include "Thread.hxx"
+/* \file
+ *
+ * The player thread controls the playback.  It acts as a bridge
+ * between the decoder thread and the output thread(s): it receives
+ * #MusicChunk objects from the decoder, optionally mixes them
+ * (cross-fading), applies software volume, and sends them to the
+ * audio outputs via PlayerOutputs::Play()
+ * (i.e. MultipleOutputs::Play()).
+ *
+ * It is controlled by the main thread (the playlist code), see
+ * Control.hxx.  The playlist enqueues new songs into the player
+ * thread and sends it commands.
+ *
+ * The player thread itself does not do any I/O.  It synchronizes with
+ * other threads via #GMutex and #GCond objects, and passes
+ * #MusicChunk instances around in #MusicPipe objects.
+ */
+
+#include "Control.hxx"
 #include "Outputs.hxx"
 #include "Listener.hxx"
-#include "decoder/DecoderThread.hxx"
-#include "decoder/DecoderControl.hxx"
+#include "decoder/Control.hxx"
 #include "MusicPipe.hxx"
 #include "MusicBuffer.hxx"
 #include "MusicChunk.hxx"
 #include "song/DetachedSong.hxx"
 #include "CrossFade.hxx"
-#include "Control.hxx"
 #include "tag/Tag.hxx"
 #include "Idle.hxx"
 #include "util/Domain.hxx"
@@ -41,6 +56,12 @@
 #include <string.h>
 
 static constexpr Domain player_domain("player");
+
+/**
+ * Start playback as soon as enough data for this duration has been
+ * pushed to the decoder pipe.
+ */
+static constexpr auto buffer_before_play_duration = std::chrono::seconds(1);
 
 class Player {
 	PlayerControl &pc;
@@ -64,7 +85,24 @@ class Player {
 	std::unique_ptr<Tag> cross_fade_tag;
 
 	/**
-	 * are we waiting for buffered_before_play?
+	 * Start playback as soon as this number of chunks has been
+	 * pushed to the decoder pipe.  This is calculated based on
+	 * #buffer_before_play_duration.
+	 */
+	unsigned buffer_before_play;
+
+	/**
+	 * If the decoder pipe gets consumed below this threshold,
+	 * it's time to wake up the decoder.
+	 *
+	 * It is calculated in a way which should prevent a wakeup
+	 * after each single consumed chunk; it is more efficient to
+	 * make the decoder decode a larger block at a time.
+	 */
+	const unsigned decoder_wakeup_threshold;
+
+	/**
+	 * Are we waiting for #buffer_before_play?
 	 */
 	bool buffering = true;
 
@@ -159,7 +197,10 @@ class Player {
 public:
 	Player(PlayerControl &_pc, DecoderControl &_dc,
 	       MusicBuffer &_buffer) noexcept
-		:pc(_pc), dc(_dc), buffer(_buffer) {}
+		:pc(_pc), dc(_dc), buffer(_buffer),
+		 decoder_wakeup_threshold(buffer.GetSize() * 3 / 4)
+	{
+	}
 
 private:
 	/**
@@ -246,12 +287,8 @@ private:
 	bool SeekDecoder() noexcept;
 
 	void CancelPendingSeek() noexcept {
-		if (!pc.seeking)
-			return;
-
 		pending_seek = SongTime::zero();
-		pc.seeking = false;
-		pc.ClientSignal();
+		pc.CancelPendingSeek();
 	}
 
 	/**
@@ -486,6 +523,12 @@ Player::CheckDecoderStartup() noexcept
 		play_audio_format = dc.out_audio_format;
 		decoder_starting = false;
 
+		const size_t buffer_before_play_size =
+			play_audio_format.TimeToSize(buffer_before_play_duration);
+		buffer_before_play =
+			(buffer_before_play_size + sizeof(MusicChunk::data) - 1)
+			/ sizeof(MusicChunk::data);
+
 		idle_add(IDLE_PLAYER);
 
 		if (pending_seek > SongTime::zero()) {
@@ -562,6 +605,8 @@ Player::SeekDecoder() noexcept
 		const ScopeUnlock unlock(pc.mutex);
 		pc.outputs.Cancel();
 	}
+
+	idle_add(IDLE_PLAYER);
 
 	if (!dc.IsSeekableCurrentSong(*pc.next_song)) {
 		/* the decoder is already decoding the "next" song -
@@ -711,9 +756,9 @@ Player::ProcessCommand() noexcept
 	return true;
 }
 
-static void
-update_song_tag(PlayerControl &pc, DetachedSong &song,
-		const Tag &new_tag) noexcept
+inline void
+PlayerControl::LockUpdateSongTag(DetachedSong &song,
+				 const Tag &new_tag) noexcept
 {
 	if (song.IsFile())
 		/* don't update tags of local files, only remote
@@ -722,48 +767,40 @@ update_song_tag(PlayerControl &pc, DetachedSong &song,
 
 	song.SetTag(new_tag);
 
-	pc.LockSetTaggedSong(song);
+	LockSetTaggedSong(song);
 
 	/* the main thread will update the playlist version when he
 	   receives this event */
-	pc.listener.OnPlayerTagModified();
+	listener.OnPlayerTagModified();
 
 	/* notify all clients that the tag of the current song has
 	   changed */
 	idle_add(IDLE_PLAYER);
 }
 
-/**
- * Plays a #MusicChunk object (after applying software volume).  If
- * it contains a (stream) tag, copy it to the current song, so MPD's
- * playlist reflects the new stream tag.
- *
- * Player lock is not held.
- */
-static void
-play_chunk(PlayerControl &pc,
-	   DetachedSong &song, MusicChunkPtr chunk,
-	   const AudioFormat format)
+inline void
+PlayerControl::PlayChunk(DetachedSong &song, MusicChunkPtr chunk,
+			 const AudioFormat &format)
 {
 	assert(chunk->CheckFormat(format));
 
 	if (chunk->tag != nullptr)
-		update_song_tag(pc, song, *chunk->tag);
+		LockUpdateSongTag(song, *chunk->tag);
 
 	if (chunk->IsEmpty())
 		return;
 
 	{
-		const std::lock_guard<Mutex> lock(pc.mutex);
-		pc.bit_rate = chunk->bit_rate;
+		const std::lock_guard<Mutex> lock(mutex);
+		bit_rate = chunk->bit_rate;
 	}
 
 	/* send the chunk to the audio outputs */
 
 	const double chunk_length(chunk->length);
 
-	pc.outputs.Play(std::move(chunk));
-	pc.total_play_time += chunk_length / format.GetTimeToSize();
+	outputs.Play(std::move(chunk));
+	total_play_time += format.SizeToTime<decltype(total_play_time)>(chunk_length);
 }
 
 inline bool
@@ -806,7 +843,7 @@ Player::PlayNextChunk() noexcept
 			cross_fade_tag = Tag::Merge(std::move(cross_fade_tag),
 						    std::move(other_chunk->tag));
 
-			if (pc.cross_fade.mixramp_delay <= 0) {
+			if (pc.cross_fade.mixramp_delay <= FloatDuration::zero()) {
 				chunk->mix_ratio = ((float)cross_fade_position)
 					     / cross_fade_chunks;
 			} else {
@@ -860,8 +897,8 @@ Player::PlayNextChunk() noexcept
 	/* play the current chunk */
 
 	try {
-		play_chunk(pc, *song, std::move(chunk),
-			   play_audio_format);
+		pc.PlayChunk(*song, std::move(chunk),
+			     play_audio_format);
 	} catch (...) {
 		LogError(std::current_exception());
 
@@ -883,9 +920,7 @@ Player::PlayNextChunk() noexcept
 	/* this formula should prevent that the decoder gets woken up
 	   with each chunk; it is more efficient to make it decode a
 	   larger block at a time */
-	if (!dc.IsIdle() &&
-	    dc.pipe->GetSize() <= (pc.buffered_before_play +
-				   buffer.GetSize() * 3) / 4) {
+	if (!dc.IsIdle() && dc.pipe->GetSize() <= decoder_wakeup_threshold) {
 		if (!decoder_woken) {
 			decoder_woken = true;
 			dc.Signal();
@@ -934,17 +969,23 @@ Player::Run() noexcept
 
 	pc.CommandFinished();
 
-	while (true) {
-		if (!ProcessCommand())
-			break;
+	while (ProcessCommand()) {
+		if (decoder_starting) {
+			/* wait until the decoder is initialized completely */
+
+			if (!CheckDecoderStartup())
+				break;
+
+			continue;
+		}
 
 		if (buffering) {
 			/* buffering at the start of the song - wait
 			   until the buffer is large enough, to
 			   prevent stuttering on slow machines */
 
-			if (pipe->GetSize() < pc.buffered_before_play &&
-			    !dc.IsIdle()) {
+			if (pipe->GetSize() < buffer_before_play &&
+			    !dc.IsIdle() && !buffer.IsFull()) {
 				/* not enough decoded buffer space yet */
 
 				dc.WaitForDecoder();
@@ -953,15 +994,6 @@ Player::Run() noexcept
 				/* buffering is complete */
 				buffering = false;
 			}
-		}
-
-		if (decoder_starting) {
-			/* wait until the decoder is initialized completely */
-
-			if (!CheckDecoderStartup())
-				break;
-
-			continue;
 		}
 
 		if (dc.IsIdle() && queued && dc.pipe == pipe) {
@@ -991,7 +1023,7 @@ Player::Run() noexcept
 							dc.out_audio_format,
 							play_audio_format,
 							buffer.GetSize() -
-							pc.buffered_before_play);
+							buffer_before_play);
 			if (cross_fade_chunks > 0)
 				xfade_state = CrossFadeState::ENABLED;
 			else
@@ -1083,13 +1115,13 @@ do_play(PlayerControl &pc, DecoderControl &dc,
 
 void
 PlayerControl::RunThread() noexcept
-{
+try {
 	SetThreadName("player");
 
 	DecoderControl dc(mutex, cond,
 			  configured_audio_format,
 			  replay_gain_config);
-	decoder_thread_start(dc);
+	dc.StartThread();
 
 	MusicBuffer buffer(buffer_chunks);
 
@@ -1170,12 +1202,12 @@ PlayerControl::RunThread() noexcept
 			break;
 		}
 	}
-}
+} catch (...) {
+	/* exceptions caught here are thrown during initialization;
+	   the main loop doesn't throw */
 
-void
-StartPlayerThread(PlayerControl &pc)
-{
-	assert(!pc.thread.IsDefined());
+	LogError(std::current_exception());
 
-	pc.thread.Start();
+	/* TODO: what now? How will the main thread learn about this
+	   failure? */
 }

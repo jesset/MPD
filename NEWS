@@ -1,4 +1,45 @@
-ver 0.21 (not yet released)
+ver 0.21.4 (not yet released)
+* database
+  - upnp: implement "list ... group"
+
+ver 0.21.3 (2018/11/16)
+* output
+  - alsa: fix crash bug
+  - alsa: fix stuttering at start of playback
+  - alsa: fix discarded samples at end of song
+  - alsa: clear error after reopening device
+* log: default to journal if MPD was started as systemd service
+
+ver 0.21.2 (2018/11/12)
+* protocol
+  - operator "=~" matches a regular expression
+  - operator "contains" matches substrings
+* decoder
+  - ffmpeg: require FFmpeg 3.1 or later
+  - ffmpeg: fix broken sound with certain codecs
+* output
+  - alsa: fix high CPU usage with dmix
+  - httpd: fix three crash bugs
+* mixer
+  - alsa: fix more rounding errors
+* fix zlib support
+
+ver 0.21.1 (2018/11/04)
+* protocol
+  - allow escaping quotes in filter expressions
+  - operator "==" never searches substrings in filter expressions
+* decoder
+  - ffmpeg: fix build failure with non-standard FFmpeg installation path
+  - flac: fix linker failure when building without FLAC support
+* encoder
+  - vorbis: fix linker failure when building without Vorbis decoder
+* fix build failure on Linux-PowerPC
+* fix build failure on FreeBSD
+* eliminate DLL dependencies on Windows
+* add warning about buggy Boost version 1.67
+* require Meson 0.47.2 because a Meson 0.47.1 bug breaks our build
+
+ver 0.21 (2018/10/31)
 * configuration
   - add "include" directive, allows including config files
   - incremental "metadata_to_use" setting
@@ -11,7 +52,10 @@ ver 0.21 (not yet released)
   - new filter syntax for "find"/"search" etc. with negation
 * database
   - simple: scan audio formats
+  - proxy: require libmpdclient 2.9
+  - proxy: forward `sort` and `window` to server
 * player
+  - hard-code "buffer_before_play" to 1 second, independent of audio format
   - "one-shot" single mode
 * input
   - curl: download to buffer instead of throttling transfer
@@ -36,13 +80,41 @@ ver 0.21 (not yet released)
   - shout: support the Shine encoder plugin
   - sndio: remove support for the broken RoarAudio sndio emulation
   - osx: initial support for DSD over PCM
+  - roar: removed
   - httpd_output: support for unix sockets
 * mixer
   - sndio: new mixer plugin
 * encoder
   - opus: support for sending metadata using ogg stream chaining
+* listen on $XDG_RUNTIME_DIR/mpd/socket by default
+* append hostname to Zeroconf service name
 * systemd watchdog support
 * require GCC 6
+* build with Meson instead of autotools
+* use GTest instead of cppunit
+
+ver 0.20.23 (2018/10/29)
+* protocol
+  - emit "player" idle event when restarting the current song
+* fix broken float to s32 conversion
+* new clang crash bug workaround
+
+ver 0.20.22 (2018/10/23)
+* protocol
+  - add tag fallbacks for AlbumArtistSort, ArtistSort
+  - fix empty string filter on fallback tags
+  - "count group ..." can print an empty group
+  - fix broken command "list ... group"
+* storage
+  - curl: URL-encode paths
+* decoder
+  - fluidsynth: adapt to API change in version 2.0
+* Android
+  - now runs as a service
+  - add button to start/stop MPD
+  - add option to auto-start on boot
+* work around clang bug leading to crash
+* install the SVG icon
 
 ver 0.20.21 (2018/08/17)
 * database

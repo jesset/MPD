@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -249,13 +249,8 @@ handle_update(Response &r, UpdateService &update,
 	      const char *uri_utf8, bool discard)
 {
 	unsigned ret = update.Enqueue(uri_utf8, discard);
-	if (ret > 0) {
-		r.Format("updating_db: %i\n", ret);
-		return CommandResult::OK;
-	} else {
-		r.Error(ACK_ERROR_UPDATE_ALREADY, "already updating");
-		return CommandResult::ERROR;
-	}
+	r.Format("updating_db: %i\n", ret);
+	return CommandResult::OK;
 }
 
 static CommandResult

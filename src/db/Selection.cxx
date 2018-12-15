@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Selection.hxx"
 #include "song/Filter.hxx"
 
 DatabaseSelection::DatabaseSelection(const char *_uri, bool _recursive,
-				     const SongFilter *_filter)
-	:uri(_uri), recursive(_recursive), filter(_filter)
+				     const SongFilter *_filter) noexcept
+	:uri(_uri), filter(_filter), recursive(_recursive)
 {
 	/* optimization: if the caller didn't specify a base URI, pick
 	   the one from SongFilter */

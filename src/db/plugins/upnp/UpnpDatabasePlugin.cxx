@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "UpnpDatabasePlugin.hxx"
 #include "Directory.hxx"
 #include "Tags.hxx"
@@ -27,6 +26,8 @@
 #include "db/Interface.hxx"
 #include "db/DatabasePlugin.hxx"
 #include "db/Selection.hxx"
+#include "db/VHelper.hxx"
+#include "db/UniqueTags.hxx"
 #include "db/DatabaseError.hxx"
 #include "db/LightDirectory.hxx"
 #include "song/LightSong.hxx"
@@ -63,7 +64,7 @@ class UpnpSong : UpnpSongData, public LightSong {
 	std::string real_uri2;
 
 public:
-	UpnpSong(UPnPDirObject &&object, std::string &&_uri)
+	UpnpSong(UPnPDirObject &&object, std::string &&_uri) noexcept
 		:UpnpSongData(std::move(_uri), std::move(object.tag)),
 		 LightSong(UpnpSongData::uri.c_str(), UpnpSongData::tag),
 		 real_uri2(std::move(object.url)) {
@@ -77,28 +78,28 @@ class UpnpDatabase : public Database {
 	UPnPDeviceDirectory *discovery;
 
 public:
-	explicit UpnpDatabase(EventLoop &_event_loop)
+	explicit UpnpDatabase(EventLoop &_event_loop) noexcept
 		:Database(upnp_db_plugin),
 		 event_loop(_event_loop) {}
 
 	static Database *Create(EventLoop &main_event_loop,
 				EventLoop &io_event_loop,
 				DatabaseListener &listener,
-				const ConfigBlock &block);
+				const ConfigBlock &block) noexcept;
 
 	void Open() override;
-	void Close() override;
+	void Close() noexcept override;
 	const LightSong *GetSong(const char *uri_utf8) const override;
-	void ReturnSong(const LightSong *song) const override;
+	void ReturnSong(const LightSong *song) const noexcept override;
 
 	void Visit(const DatabaseSelection &selection,
 		   VisitDirectory visit_directory,
 		   VisitSong visit_song,
 		   VisitPlaylist visit_playlist) const override;
 
-	void VisitUniqueTags(const DatabaseSelection &selection,
-			     TagType tag_type, TagMask group_mask,
-			     VisitTag visit_tag) const override;
+	std::map<std::string, std::set<std::string>> CollectUniqueTags(const DatabaseSelection &selection,
+								       TagType tag_type,
+								       TagType group) const override;
 
 	DatabaseStats GetStats(const DatabaseSelection &selection) const override;
 
@@ -148,7 +149,7 @@ private:
 Database *
 UpnpDatabase::Create(EventLoop &, EventLoop &io_event_loop,
 		     gcc_unused DatabaseListener &listener,
-		     const ConfigBlock &)
+		     const ConfigBlock &) noexcept
 {
 	return new UpnpDatabase(io_event_loop);
 }
@@ -169,14 +170,14 @@ UpnpDatabase::Open()
 }
 
 void
-UpnpDatabase::Close()
+UpnpDatabase::Close() noexcept
 {
 	delete discovery;
 	UpnpClientGlobalFinish();
 }
 
 void
-UpnpDatabase::ReturnSong(const LightSong *_song) const
+UpnpDatabase::ReturnSong(const LightSong *_song) const noexcept
 {
 	assert(_song != nullptr);
 
@@ -220,7 +221,7 @@ UpnpDatabase::GetSong(const char *uri) const
  * Double-quote a string, adding internal backslash escaping.
  */
 static void
-dquote(std::string &out, const char *in)
+dquote(std::string &out, const char *in) noexcept
 {
 	out.push_back('"');
 
@@ -333,7 +334,7 @@ visitSong(const UPnPDirObject &meta, const char *path,
  */
 static std::string
 songPath(const std::string &servername,
-	 const std::string &objid)
+	 const std::string &objid) noexcept
 {
 	return servername + "/" + rootid + "/" + objid;
 }
@@ -576,6 +577,15 @@ UpnpDatabase::VisitServer(const ContentDirectoryService &server,
 	}
 }
 
+gcc_const
+static DatabaseSelection
+CheckSelection(DatabaseSelection selection) noexcept
+{
+	selection.uri.clear();
+	selection.filter = nullptr;
+	return selection;
+}
+
 // Deal with the possibly multiple servers, call VisitServer if needed.
 void
 UpnpDatabase::Visit(const DatabaseSelection &selection,
@@ -583,6 +593,8 @@ UpnpDatabase::Visit(const DatabaseSelection &selection,
 		    VisitSong visit_song,
 		    VisitPlaylist visit_playlist) const
 {
+	DatabaseVisitorHelper helper(CheckSelection(selection), visit_song);
+
 	auto vpath = SplitString(selection.uri.c_str(), '/');
 	if (vpath.empty()) {
 		for (const auto &server : discovery->GetDirectories()) {
@@ -598,6 +610,7 @@ UpnpDatabase::Visit(const DatabaseSelection &selection,
 					    visit_playlist);
 		}
 
+		helper.Commit();
 		return;
 	}
 
@@ -608,39 +621,14 @@ UpnpDatabase::Visit(const DatabaseSelection &selection,
 	auto server = discovery->GetServer(servername.c_str());
 	VisitServer(server, std::move(vpath), selection,
 		    visit_directory, visit_song, visit_playlist);
+	helper.Commit();
 }
 
-void
-UpnpDatabase::VisitUniqueTags(const DatabaseSelection &selection,
-			      TagType tag, gcc_unused TagMask group_mask,
-			      VisitTag visit_tag) const
+std::map<std::string, std::set<std::string>>
+UpnpDatabase::CollectUniqueTags(const DatabaseSelection &selection,
+				TagType tag, TagType group) const
 {
-	// TODO: use group_mask
-
-	if (!visit_tag)
-		return;
-
-	std::set<std::string> values;
-	for (auto& server : discovery->GetDirectories()) {
-		const auto dirbuf = SearchSongs(server, rootid, selection);
-
-		for (const auto &dirent : dirbuf.objects) {
-			if (dirent.type != UPnPDirObject::Type::ITEM ||
-			    dirent.item_class != UPnPDirObject::ItemClass::MUSIC)
-				continue;
-
-			const char *value = dirent.tag.GetValue(tag);
-			if (value != nullptr) {
-				values.emplace(value);
-			}
-		}
-	}
-
-	for (const auto& value : values) {
-		TagBuilder builder;
-		builder.AddItem(tag, value.c_str());
-		visit_tag(builder.Commit());
-	}
+	return ::CollectUniqueTags(*this, selection, tag, group);
 }
 
 DatabaseStats

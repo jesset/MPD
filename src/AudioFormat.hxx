@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,9 @@
 #define MPD_AUDIO_FORMAT_HXX
 
 #include "pcm/SampleFormat.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
+
+#include <chrono>
 
 #include <stdint.h>
 #include <stddef.h>
@@ -147,11 +149,28 @@ struct AudioFormat {
 	 */
 	unsigned GetFrameSize() const;
 
-	/**
-	 * Returns the floating point factor which converts a time
-	 * span to a storage size in bytes.
-	 */
-	double GetTimeToSize() const;
+	template<typename D>
+	constexpr auto TimeToFrames(D t) const noexcept {
+		using Period = typename D::period;
+		return ((t.count() * sample_rate) / Period::den) * Period::num;
+	}
+
+	template<typename D>
+	constexpr size_t TimeToSize(D t) const noexcept {
+		return size_t(size_t(TimeToFrames(t)) * GetFrameSize());
+	}
+
+	template<typename D>
+	constexpr D FramesToTime(std::uintmax_t size) const noexcept {
+		using Rep = typename D::rep;
+		using Period = typename D::period;
+		return D(((Rep(1) * size / Period::num) * Period::den) / sample_rate);
+	}
+
+	template<typename D>
+	constexpr D SizeToTime(std::uintmax_t size) const noexcept {
+		return FramesToTime<D>(size / GetFrameSize());
+	}
 };
 
 /**
@@ -210,12 +229,6 @@ inline unsigned
 AudioFormat::GetFrameSize() const
 {
 	return GetSampleSize() * channels;
-}
-
-inline double
-AudioFormat::GetTimeToSize() const
-{
-	return sample_rate * GetFrameSize();
 }
 
 /**

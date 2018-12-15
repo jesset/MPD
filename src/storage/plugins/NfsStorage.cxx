@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "NfsStorage.hxx"
 #include "storage/StoragePlugin.hxx"
 #include "storage/StorageInterface.hxx"
@@ -249,28 +248,31 @@ NfsStorage::MapToRelativeUTF8(const char *uri_utf8) const noexcept
 }
 
 static void
-Copy(StorageFileInfo &info, const struct stat &st) noexcept
+Copy(StorageFileInfo &info, const struct nfs_stat_64 &st) noexcept
 {
-	if (S_ISREG(st.st_mode))
+	if (S_ISREG(st.nfs_mode))
 		info.type = StorageFileInfo::Type::REGULAR;
-	else if (S_ISDIR(st.st_mode))
+	else if (S_ISDIR(st.nfs_mode))
 		info.type = StorageFileInfo::Type::DIRECTORY;
 	else
 		info.type = StorageFileInfo::Type::OTHER;
 
-	info.size = st.st_size;
-	info.mtime = std::chrono::system_clock::from_time_t(st.st_mtime);
-	info.device = st.st_dev;
-	info.inode = st.st_ino;
+	info.size = st.nfs_size;
+	info.mtime = std::chrono::system_clock::from_time_t(st.nfs_mtime);
+	info.device = st.nfs_dev;
+	info.inode = st.nfs_ino;
 }
 
 class NfsGetInfoOperation final : public BlockingNfsOperation {
 	const char *const path;
 	StorageFileInfo info;
+	bool follow;
 
 public:
-	NfsGetInfoOperation(NfsConnection &_connection, const char *_path)
-		:BlockingNfsOperation(_connection), path(_path) {}
+	NfsGetInfoOperation(NfsConnection &_connection, const char *_path,
+			    bool _follow)
+		:BlockingNfsOperation(_connection), path(_path),
+		 follow(_follow) {}
 
 	const StorageFileInfo &GetInfo() const {
 		return info;
@@ -278,22 +280,25 @@ public:
 
 protected:
 	void Start() override {
-		connection.Stat(path, *this);
+		if (follow)
+			connection.Stat(path, *this);
+		else
+			connection.Lstat(path, *this);
 	}
 
 	void HandleResult(gcc_unused unsigned status, void *data) noexcept override {
-		Copy(info, *(const struct stat *)data);
+		Copy(info, *(const struct nfs_stat_64 *)data);
 	}
 };
 
 StorageFileInfo
-NfsStorage::GetInfo(const char *uri_utf8, gcc_unused bool follow)
+NfsStorage::GetInfo(const char *uri_utf8, bool follow)
 {
 	const std::string path = UriToNfsPath(uri_utf8);
 
 	WaitConnected();
 
-	NfsGetInfoOperation operation(*connection, path.c_str());
+	NfsGetInfoOperation operation(*connection, path.c_str(), follow);
 	operation.Run();
 	return operation.GetInfo();
 }

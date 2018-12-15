@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,7 +33,7 @@
 #include "event/ServerSocket.hxx"
 #include "event/DeferEvent.hxx"
 #include "util/Cast.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <boost/intrusive/list.hpp>
 
@@ -261,7 +261,7 @@ private:
 	void OnDeferredBroadcast() noexcept;
 
 	void OnAccept(UniqueSocketDescriptor fd,
-		      SocketAddress address, int uid) override;
+		      SocketAddress address, int uid) noexcept override;
 };
 
 extern const class Domain httpd_output_domain;

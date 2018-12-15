@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "UdisksNeighborPlugin.hxx"
 #include "lib/dbus/Connection.hxx"
 #include "lib/dbus/Error.hxx"
@@ -236,7 +235,7 @@ UdisksNeighborExplorer::HandleMessage(DBusConnection *, DBusMessage *message) no
 				UDisks2::Object o(path);
 				UDisks2::ParseObject(o, std::move(i));
 				if (o.IsValid())
-					Insert(std::move(o));
+					this->Insert(std::move(o));
 			});
 
 		return DBUS_HANDLER_RESULT_HANDLED;

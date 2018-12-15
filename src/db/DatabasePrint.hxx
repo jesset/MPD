@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,7 @@ enum TagType : uint8_t;
 class TagMask;
 class SongFilter;
 struct DatabaseSelection;
+struct RangeArg;
 struct Partition;
 class Response;
 
@@ -38,24 +39,13 @@ db_selection_print(Response &r, Partition &partition,
 		   const DatabaseSelection &selection,
 		   bool full, bool base);
 
-/**
- * @param sort the sort tag; TAG_NUM_OF_ITEM_TYPES means don't sort;
- * LOCATE_TAG_MODIFIED_SINCE means sort by file modification time
- */
-void
-db_selection_print(Response &r, Partition &partition,
-		   const DatabaseSelection &selection,
-		   bool full, bool base,
-		   TagType sort, bool descending,
-		   unsigned window_start, unsigned window_end);
-
 void
 PrintSongUris(Response &r, Partition &partition,
 	      const SongFilter *filter);
 
 void
 PrintUniqueTags(Response &r, Partition &partition,
-		TagType type, TagMask group_mask,
+		TagType type, TagType group,
 		const SongFilter *filter);
 
 #endif

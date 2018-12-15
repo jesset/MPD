@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Id3Scan.hxx"
 #include "Id3Load.hxx"
 #include "Handler.hxx"
@@ -38,12 +37,13 @@
 #include <string.h>
 #include <stdlib.h>
 
-#  ifndef ID3_FRAME_COMPOSER
-#    define ID3_FRAME_COMPOSER "TCOM"
-#  endif
-#  ifndef ID3_FRAME_DISC
-#    define ID3_FRAME_DISC "TPOS"
-#  endif
+#ifndef ID3_FRAME_COMPOSER
+#define ID3_FRAME_COMPOSER "TCOM"
+#endif
+
+#ifndef ID3_FRAME_DISC
+#define ID3_FRAME_DISC "TPOS"
+#endif
 
 #ifndef ID3_FRAME_ARTIST_SORT
 #define ID3_FRAME_ARTIST_SORT "TSOP"
@@ -59,6 +59,10 @@
 
 #ifndef ID3_FRAME_ORIGINAL_RELEASE_DATE
 #define ID3_FRAME_ORIGINAL_RELEASE_DATE "TDOR"
+#endif
+
+#ifndef ID3_FRAME_LABEL
+#define ID3_FRAME_LABEL "TPUB"
 #endif
 
 gcc_pure
@@ -142,7 +146,7 @@ tag_id3_import_text_frame(const struct id3_frame *frame,
  * 4.2).  This is a wrapper for tag_id3_import_text_frame().
  */
 static void
-tag_id3_import_text(struct id3_tag *tag, const char *id, TagType type,
+tag_id3_import_text(const struct id3_tag *tag, const char *id, TagType type,
 		    TagHandler &handler) noexcept
 {
 	const struct id3_frame *frame;
@@ -191,7 +195,7 @@ tag_id3_import_comment_frame(const struct id3_frame *frame, TagType type,
  * wrapper for tag_id3_import_comment_frame().
  */
 static void
-tag_id3_import_comment(struct id3_tag *tag, const char *id, TagType type,
+tag_id3_import_comment(const struct id3_tag *tag, const char *id, TagType type,
 		       TagHandler &handler) noexcept
 {
 	const struct id3_frame *frame;
@@ -217,7 +221,7 @@ tag_id3_parse_txxx_name(const char *name) noexcept
  * Import all known MusicBrainz tags from TXXX frames.
  */
 static void
-tag_id3_import_musicbrainz(struct id3_tag *id3_tag,
+tag_id3_import_musicbrainz(const struct id3_tag *id3_tag,
 			   TagHandler &handler) noexcept
 {
 	for (unsigned i = 0;; ++i) {
@@ -250,7 +254,7 @@ tag_id3_import_musicbrainz(struct id3_tag *id3_tag,
  * Imports the MusicBrainz TrackId from the UFID tag.
  */
 static void
-tag_id3_import_ufid(struct id3_tag *id3_tag,
+tag_id3_import_ufid(const struct id3_tag *id3_tag,
 		    TagHandler &handler) noexcept
 {
 	for (unsigned i = 0;; ++i) {
@@ -283,7 +287,7 @@ tag_id3_import_ufid(struct id3_tag *id3_tag,
 }
 
 void
-scan_id3_tag(struct id3_tag *tag, TagHandler &handler) noexcept
+scan_id3_tag(const struct id3_tag *tag, TagHandler &handler) noexcept
 {
 	tag_id3_import_text(tag, ID3_FRAME_ARTIST, TAG_ARTIST,
 			    handler);
@@ -317,20 +321,20 @@ scan_id3_tag(struct id3_tag *tag, TagHandler &handler) noexcept
 			       handler);
 	tag_id3_import_text(tag, ID3_FRAME_DISC, TAG_DISC,
 			    handler);
+	tag_id3_import_text(tag, ID3_FRAME_LABEL, TAG_LABEL,
+			    handler);
 
 	tag_id3_import_musicbrainz(tag, handler);
 	tag_id3_import_ufid(tag, handler);
 }
 
-std::unique_ptr<Tag>
-tag_id3_import(struct id3_tag *tag)
+Tag
+tag_id3_import(const struct id3_tag *tag) noexcept
 {
 	TagBuilder tag_builder;
 	AddTagHandler h(tag_builder);
 	scan_id3_tag(tag, h);
-	return tag_builder.empty()
-		? nullptr
-		: tag_builder.CommitNew();
+	return tag_builder.Commit();
 }
 
 bool

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,12 +20,9 @@
 #ifndef MPD_PROTOCOL_ARGPARSER_HXX
 #define MPD_PROTOCOL_ARGPARSER_HXX
 
-#include "check.h"
-
-#include <limits>
-
 #include <stdint.h>
 
+struct RangeArg;
 class SongTime;
 class SignedSongTime;
 
@@ -37,19 +34,6 @@ ParseCommandArgInt(const char *s, int min_value, int max_value);
 
 int
 ParseCommandArgInt(const char *s);
-
-struct RangeArg {
-	unsigned start, end;
-
-	void SetAll() {
-		start = 0;
-		end = std::numeric_limits<unsigned>::max();
-	}
-
-	static constexpr RangeArg All() {
-		return { 0, std::numeric_limits<unsigned>::max() };
-	}
-};
 
 RangeArg
 ParseCommandArgRange(const char *s);

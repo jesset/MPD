@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,6 @@
 #include "tag/Id3Load.hxx"
 #include "tag/Rva2.hxx"
 #include "ReplayGainInfo.hxx"
-#include "config/Global.hxx"
 #include "thread/Mutex.hxx"
 #include "fs/Path.hxx"
 #include "input/InputStream.hxx"
@@ -36,13 +35,6 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-
-const char *
-config_get_string(gcc_unused enum ConfigOption option,
-		  const char *default_value) noexcept
-{
-	return default_value;
-}
 
 static void
 DumpReplayGainTuple(const char *name, const ReplayGainTuple &tuple)

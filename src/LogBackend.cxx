@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "LogBackend.hxx"
 #include "Log.hxx"
 #include "util/Domain.hxx"
 #include "util/StringStrip.hxx"
+#include "config.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -34,6 +34,8 @@
 
 #ifdef ANDROID
 #include <android/log.h>
+#include "android/LogListener.hxx"
+#include "Main.hxx"
 
 static int
 ToAndroidLogLevel(LogLevel log_level) noexcept
@@ -179,6 +181,9 @@ Log(const Domain &domain, LogLevel level, const char *msg) noexcept
 #ifdef ANDROID
 	__android_log_print(ToAndroidLogLevel(level), "MPD",
 			    "%s: %s", domain.GetName(), msg);
+	if (logListener != nullptr)
+		logListener->OnLog(Java::GetEnv(), ToAndroidLogLevel(level),
+				   "%s: %s", domain.GetName(), msg);
 #else
 
 	if (level < log_threshold)

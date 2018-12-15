@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -34,7 +34,6 @@
 #include "plugins/PipeOutputPlugin.hxx"
 #include "plugins/PulseOutputPlugin.hxx"
 #include "plugins/RecorderOutputPlugin.hxx"
-#include "plugins/RoarOutputPlugin.hxx"
 #include "plugins/ShoutOutputPlugin.hxx"
 #include "plugins/sles/SlesOutputPlugin.hxx"
 #include "plugins/SolarisOutputPlugin.hxx"
@@ -64,9 +63,6 @@ const AudioOutputPlugin *const audio_output_plugins[] = {
 #endif
 #ifdef ENABLE_ALSA
 	&alsa_output_plugin,
-#endif
-#ifdef ENABLE_ROAR
-	&roar_output_plugin,
 #endif
 #ifdef ENABLE_AO
 	&ao_output_plugin,

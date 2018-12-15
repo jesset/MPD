@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2012-2018 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,9 +27,9 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
 #include "FileDescriptor.hxx"
 
+#include <assert.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
@@ -37,15 +37,9 @@
 #include <poll.h>
 #endif
 
-#ifdef USE_EVENTFD
+#ifdef __linux__
 #include <sys/eventfd.h>
-#endif
-
-#ifdef USE_SIGNALFD
 #include <sys/signalfd.h>
-#endif
-
-#ifdef HAVE_INOTIFY_INIT
 #include <sys/inotify.h>
 #endif
 
@@ -63,6 +57,32 @@ bool
 FileDescriptor::IsValid() const noexcept
 {
 	return IsDefined() && fcntl(fd, F_GETFL) >= 0;
+}
+
+bool
+FileDescriptor::IsPipe() const noexcept
+{
+	struct stat st;
+	return IsDefined() && fstat(fd, &st) == 0 && S_ISFIFO(st.st_mode);
+}
+
+bool
+FileDescriptor::IsSocket() const noexcept
+{
+	struct stat st;
+	return IsDefined() && fstat(fd, &st) == 0 && S_ISSOCK(st.st_mode);
+}
+
+#endif
+
+#ifdef __linux__
+
+bool
+FileDescriptor::Open(FileDescriptor dir, const char *pathname,
+		     int flags, mode_t mode) noexcept
+{
+	fd = ::openat(dir.Get(), pathname, flags | O_NOCTTY | O_CLOEXEC, mode);
+	return IsDefined();
 }
 
 #endif
@@ -101,15 +121,33 @@ FileDescriptor::OpenNonBlocking(const char *pathname) noexcept
 
 #endif
 
+#ifdef __linux__
+
+bool
+FileDescriptor::CreatePipe(FileDescriptor &r, FileDescriptor &w,
+			   int flags) noexcept
+{
+	int fds[2];
+	const int result = pipe2(fds, flags);
+	if (result < 0)
+		return false;
+
+	r = FileDescriptor(fds[0]);
+	w = FileDescriptor(fds[1]);
+	return true;
+}
+
+#endif
+
 bool
 FileDescriptor::CreatePipe(FileDescriptor &r, FileDescriptor &w) noexcept
 {
+#ifdef __linux__
+	return CreatePipe(r, w, O_CLOEXEC);
+#else
 	int fds[2];
 
-#ifdef HAVE_PIPE2
-	const int flags = O_CLOEXEC;
-	const int result = pipe2(fds, flags);
-#elif defined(_WIN32)
+#ifdef _WIN32
 	const int result = _pipe(fds, 512, _O_BINARY);
 #else
 	const int result = pipe(fds);
@@ -121,6 +159,7 @@ FileDescriptor::CreatePipe(FileDescriptor &r, FileDescriptor &w) noexcept
 	r = FileDescriptor(fds[0]);
 	w = FileDescriptor(fds[1]);
 	return true;
+#endif
 }
 
 #ifndef _WIN32
@@ -129,27 +168,16 @@ bool
 FileDescriptor::CreatePipeNonBlock(FileDescriptor &r,
 				   FileDescriptor &w) noexcept
 {
-	int fds[2];
-
-#ifdef HAVE_PIPE2
-	const int flags = O_CLOEXEC|O_NONBLOCK;
-	const int result = pipe2(fds, flags);
+#ifdef __linux__
+	return CreatePipe(r, w, O_CLOEXEC|O_NONBLOCK);
 #else
-	const int result = pipe(fds);
-#endif
-
-	if (result < 0)
+	if (!CreatePipe(r, w))
 		return false;
 
-	r = FileDescriptor(fds[0]);
-	w = FileDescriptor(fds[1]);
-
-#ifndef HAVE_PIPE2
 	r.SetNonBlocking();
 	w.SetNonBlocking();
-#endif
-
 	return true;
+#endif
 }
 
 void
@@ -189,9 +217,9 @@ FileDescriptor::DisableCloseOnExec() noexcept
 }
 
 bool
-FileDescriptor::CheckDuplicate(int new_fd) noexcept
+FileDescriptor::CheckDuplicate(FileDescriptor new_fd) noexcept
 {
-	if (fd == new_fd) {
+	if (*this == new_fd) {
 		DisableCloseOnExec();
 		return true;
 	} else
@@ -200,7 +228,7 @@ FileDescriptor::CheckDuplicate(int new_fd) noexcept
 
 #endif
 
-#ifdef USE_EVENTFD
+#ifdef __linux__
 
 bool
 FileDescriptor::CreateEventFD(unsigned initval) noexcept
@@ -208,10 +236,6 @@ FileDescriptor::CreateEventFD(unsigned initval) noexcept
 	fd = ::eventfd(initval, EFD_NONBLOCK|EFD_CLOEXEC);
 	return fd >= 0;
 }
-
-#endif
-
-#ifdef USE_SIGNALFD
 
 bool
 FileDescriptor::CreateSignalFD(const sigset_t *mask) noexcept
@@ -224,24 +248,12 @@ FileDescriptor::CreateSignalFD(const sigset_t *mask) noexcept
 	return true;
 }
 
-#endif
-
-#ifdef HAVE_INOTIFY_INIT
-
 bool
 FileDescriptor::CreateInotify() noexcept
 {
-#ifdef HAVE_INOTIFY_INIT1
 	int new_fd = inotify_init1(IN_CLOEXEC|IN_NONBLOCK);
-#else
-	int new_fd = inotify_init();
-#endif
 	if (new_fd < 0)
 		return false;
-
-#ifndef HAVE_INOTIFY_INIT1
-	SetNonBlocking();
-#endif
 
 	fd = new_fd;
 	return true;

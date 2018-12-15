@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,7 +26,7 @@
 #include "thread/Mutex.hxx"
 #include "thread/Cond.hxx"
 #include "system/PeriodClock.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <utility>
 #include <exception>
@@ -130,6 +130,12 @@ class AudioOutputControl {
 
 		CLOSE,
 		PAUSE,
+
+		/**
+		 * Close or pause the device, depending on the
+		 * #always_on setting.
+		 */
+		RELEASE,
 
 		/**
 		 * Drains the internal (hardware) buffers of the device.  This

@@ -17,12 +17,11 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "DumpDecoderClient.hxx"
 #include "decoder/DecoderAPI.hxx"
 #include "input/InputStream.hxx"
 #include "util/StringBuffer.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -87,7 +86,7 @@ DumpDecoderClient::Read(InputStream &is, void *buffer, size_t length)
 }
 
 void
-DumpDecoderClient::SubmitTimestamp(gcc_unused double t)
+DumpDecoderClient::SubmitTimestamp(gcc_unused FloatDuration t)
 {
 }
 

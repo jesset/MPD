@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,9 +24,10 @@
 #ifndef MPD_MAPPER_HXX
 #define MPD_MAPPER_HXX
 
-#include <string>
+#include "util/Compiler.h"
+#include "config.h"
 
-#include "Compiler.h"
+#include <string>
 
 #define PLAYLIST_FILE_SUFFIX ".m3u"
 

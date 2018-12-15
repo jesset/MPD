@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 /* necessary because libavutil/common.h uses UINT64_C */
 #define __STDC_CONSTANT_MACROS
 
-#include "config.h"
 #include "FfmpegInputPlugin.hxx"
 #include "lib/ffmpeg/Init.hxx"
 #include "lib/ffmpeg/Domain.hxx"
@@ -85,14 +84,6 @@ static InputStreamPtr
 input_ffmpeg_open(const char *uri,
 		  Mutex &mutex)
 {
-	if (!StringStartsWithCaseASCII(uri, "gopher://") &&
-	    !StringStartsWithCaseASCII(uri, "rtp://") &&
-	    !StringStartsWithCaseASCII(uri, "rtsp://") &&
-	    !StringStartsWithCaseASCII(uri, "rtmp://") &&
-	    !StringStartsWithCaseASCII(uri, "rtmpt://") &&
-	    !StringStartsWithCaseASCII(uri, "rtmps://"))
-		return nullptr;
-
 	AVIOContext *h;
 	auto result = avio_open(&h, uri, AVIO_FLAG_READ);
 	if (result != 0)
@@ -146,8 +137,19 @@ FfmpegInputStream::Seek(offset_type new_offset)
 	eof = false;
 }
 
+static constexpr const char *ffmpeg_prefixes[] = {
+	"gopher://",
+	"rtp://",
+	"rtsp://",
+	"rtmp://",
+	"rtmpt://",
+	"rtmps://",
+	nullptr
+};
+
 const InputPlugin input_plugin_ffmpeg = {
 	"ffmpeg",
+	ffmpeg_prefixes,
 	input_ffmpeg_init,
 	nullptr,
 	input_ffmpeg_open,

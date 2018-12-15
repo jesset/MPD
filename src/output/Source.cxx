@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Source.hxx"
 #include "MusicChunk.hxx"
 #include "filter/Filter.hxx"
@@ -41,8 +40,10 @@ AudioOutputSource::Open(const AudioFormat audio_format, const MusicPipe &_pipe,
 {
 	assert(audio_format.IsValid());
 
-	if (!IsOpen() || &_pipe != &pipe.GetPipe())
+	if (!IsOpen() || &_pipe != &pipe.GetPipe()) {
+		current_chunk = nullptr;
 		pipe.Init(_pipe);
+	}
 
 	/* (re)open the filter */
 

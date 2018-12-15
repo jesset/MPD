@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Registry.hxx"
+#include "InputPlugin.hxx"
 #include "util/Macros.hxx"
 #include "plugins/TidalInputPlugin.hxx"
 #include "plugins/QobuzInputPlugin.hxx"
+#include "config.h"
 
 #ifdef ENABLE_ALSA
 #include "plugins/AlsaInputPlugin.hxx"
@@ -83,3 +84,14 @@ const InputPlugin *const input_plugins[] = {
 };
 
 bool input_plugins_enabled[ARRAY_SIZE(input_plugins) - 1];
+
+bool
+HasRemoteTagScanner(const char *uri) noexcept
+{
+	input_plugins_for_each_enabled(plugin)
+		if (plugin->scan_tags != nullptr &&
+		    plugin->SupportsUri(uri))
+			return true;
+
+	return false;
+}

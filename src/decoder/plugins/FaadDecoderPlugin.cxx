@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "FaadDecoderPlugin.hxx"
 #include "../DecoderAPI.hxx"
 #include "../DecoderBuffer.hxx"
@@ -31,6 +30,7 @@
 
 #include <neaacdec.h>
 
+#include <cmath>
 #include <exception>
 
 #include <assert.h>
@@ -386,9 +386,9 @@ faad_stream_decode(DecoderClient &client, InputStream &is,
 		/* update bit rate and position */
 
 		if (frame_info.samples > 0) {
-			bit_rate = frame_info.bytesconsumed * 8.0 *
-			    frame_info.channels * audio_format.sample_rate /
-			    frame_info.samples / 1000 + 0.5;
+			bit_rate = lround(frame_info.bytesconsumed * 8.0 *
+					  frame_info.channels * audio_format.sample_rate /
+					  frame_info.samples / 1000);
 		}
 
 		/* send PCM samples to MPD */

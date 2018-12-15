@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 #ifndef MPD_FS_GLOB_XX
 #define MPD_FS_GLOB_XX
 
-#include "check.h"
+#include "config.h"
 
 #ifdef HAVE_FNMATCH
 #define HAVE_CLASS_GLOB
@@ -33,7 +33,7 @@
 #endif
 
 #ifdef HAVE_CLASS_GLOB
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 /**
  * A pattern that matches file names.  It may contain shell wildcards

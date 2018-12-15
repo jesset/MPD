@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Control.hxx"
 #include "Filtered.hxx"
 #include "Client.hxx"
@@ -443,14 +442,42 @@ AudioOutputControl::Task() noexcept
 		case Command::PAUSE:
 			if (!open) {
 				/* the output has failed after
-				   audio_output_all_pause() has
-				   submitted the PAUSE command; bail
+				   the PAUSE command was submitted; bail
 				   out */
 				CommandFinished();
 				break;
 			}
 
 			InternalPause();
+			/* don't "break" here: this might cause
+			   Play() to be called when command==CLOSE
+			   ends the paused state - "continue" checks
+			   the new command first */
+			continue;
+
+		case Command::RELEASE:
+			if (!open) {
+				/* the output has failed after
+				   the PAUSE command was submitted; bail
+				   out */
+				CommandFinished();
+				break;
+			}
+
+			if (always_on) {
+				/* in "always_on" mode, the output is
+				   paused instead of being closed;
+				   however we need to flush the
+				   AudioOutputSource because its data
+				   have been invalidated by stopping
+				   the actual playback */
+				source.Cancel();
+				InternalPause();
+			} else {
+				InternalClose(false);
+				CommandFinished();
+			}
+
 			/* don't "break" here: this might cause
 			   Play() to be called when command==CLOSE
 			   ends the paused state - "continue" checks

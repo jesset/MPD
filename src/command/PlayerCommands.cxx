@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,6 +38,8 @@
 #ifdef ENABLE_DATABASE
 #include "db/update/Service.hxx"
 #endif
+
+#include <cmath>
 
 #define COMMAND_STATUS_STATE            "state"
 #define COMMAND_STATUS_REPEAT           "repeat"
@@ -150,13 +152,13 @@ handle_status(Client &client, gcc_unused Request args, Response &r)
 		 pc.GetMixRampDb(),
 		 state);
 
-	if (pc.GetCrossFade() > 0)
-		r.Format(COMMAND_STATUS_CROSSFADE ": %i\n",
-			 int(pc.GetCrossFade() + 0.5));
+	if (pc.GetCrossFade() > FloatDuration::zero())
+		r.Format(COMMAND_STATUS_CROSSFADE ": %lu\n",
+			 std::lround(pc.GetCrossFade().count()));
 
-	if (pc.GetMixRampDelay() > 0)
+	if (pc.GetMixRampDelay() > FloatDuration::zero())
 		r.Format(COMMAND_STATUS_MIXRAMPDELAY ": %f\n",
-			 pc.GetMixRampDelay());
+			 pc.GetMixRampDelay().count());
 
 	song = playlist.GetCurrentPosition();
 	if (song >= 0) {
@@ -314,8 +316,8 @@ handle_seekcur(Client &client, Request args, gcc_unused Response &r)
 CommandResult
 handle_crossfade(Client &client, Request args, gcc_unused Response &r)
 {
-	unsigned xfade_time = args.ParseUnsigned(0);
-	client.GetPlayerControl().SetCrossFade(xfade_time);
+	FloatDuration duration{args.ParseUnsigned(0)};
+	client.GetPlayerControl().SetCrossFade(duration);
 	return CommandResult::OK;
 }
 
@@ -330,7 +332,7 @@ handle_mixrampdb(Client &client, Request args, gcc_unused Response &r)
 CommandResult
 handle_mixrampdelay(Client &client, Request args, gcc_unused Response &r)
 {
-	float delay_secs = args.ParseFloat(0);
+	FloatDuration delay_secs{args.ParseFloat(0)};
 	client.GetPlayerControl().SetMixRampDelay(delay_secs);
 	return CommandResult::OK;
 }

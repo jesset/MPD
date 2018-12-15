@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,13 +20,12 @@
 #ifndef MPD_CLIENT_H
 #define MPD_CLIENT_H
 
-#include "check.h"
 #include "ClientMessage.hxx"
 #include "command/CommandListBuilder.hxx"
 #include "tag/Mask.hxx"
 #include "event/FullyBufferedSocket.hxx"
 #include "event/TimerEvent.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/list_hook.hpp>
@@ -44,7 +43,7 @@ class EventLoop;
 class Path;
 struct Instance;
 struct Partition;
-struct PlayerControl;
+class PlayerControl;
 struct playlist;
 class Database;
 class Storage;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,8 +20,6 @@
 #ifndef MPD_TAG_RVA2_HXX
 #define MPD_TAG_RVA2_HXX
 
-#include "check.h"
-
 struct id3_tag;
 struct ReplayGainInfo;
 
@@ -32,6 +30,7 @@ struct ReplayGainInfo;
  * @return true on success
  */
 bool
-tag_rva2_parse(id3_tag *tag, ReplayGainInfo &replay_gain_info);
+tag_rva2_parse(const struct id3_tag *tag,
+	       ReplayGainInfo &replay_gain_info) noexcept;
 
 #endif

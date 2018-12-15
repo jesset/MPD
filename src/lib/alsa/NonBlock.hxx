@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 #ifndef MPD_ALSA_NON_BLOCK_HXX
 #define MPD_ALSA_NON_BLOCK_HXX
 
-#include "check.h"
 #include "util/ReusableArray.hxx"
 
 #include <alsa/asoundlib.h>
@@ -30,23 +29,44 @@
 class MultiSocketMonitor;
 
 /**
- * Update #MultiSocketMonitor's socket list from
- * snd_pcm_poll_descriptors().  To be called from
- * MultiSocketMonitor::PrepareSockets().
- *
- * Throws exception on error.
+ * Helper class for #MultiSocketMonitor's virtual methods which
+ * manages the file descriptors for a #snd_pcm_t.
  */
-std::chrono::steady_clock::duration
-PrepareAlsaPcmSockets(MultiSocketMonitor &m, snd_pcm_t *pcm,
-		      ReusableArray<pollfd> &pfd_buffer);
+class AlsaNonBlockPcm {
+	ReusableArray<pollfd> pfd_buffer;
+
+public:
+	/**
+	 * Throws on error.
+	 */
+	std::chrono::steady_clock::duration PrepareSockets(MultiSocketMonitor &m,
+							   snd_pcm_t *pcm);
+
+	/**
+	 * Wrapper for snd_pcm_poll_descriptors_revents(), to be
+	 * called from MultiSocketMonitor::DispatchSockets().
+	 *
+	 * Throws on error.
+	 */
+	void DispatchSockets(MultiSocketMonitor &m, snd_pcm_t *pcm);
+};
 
 /**
- * Update #MultiSocketMonitor's socket list from
- * snd_mixer_poll_descriptors().  To be called from
- * MultiSocketMonitor::PrepareSockets().
+ * Helper class for #MultiSocketMonitor's virtual methods which
+ * manages the file descriptors for a #snd_mixer_t.
  */
-std::chrono::steady_clock::duration
-PrepareAlsaMixerSockets(MultiSocketMonitor &m, snd_mixer_t *mixer,
-		      ReusableArray<pollfd> &pfd_buffer) noexcept;
+class AlsaNonBlockMixer {
+	ReusableArray<pollfd> pfd_buffer;
+
+public:
+	std::chrono::steady_clock::duration PrepareSockets(MultiSocketMonitor &m,
+							   snd_mixer_t *mixer) noexcept;
+
+	/**
+	 * Wrapper for snd_mixer_poll_descriptors_revents(), to be
+	 * called from MultiSocketMonitor::DispatchSockets().
+	 */
+	void DispatchSockets(MultiSocketMonitor &m, snd_mixer_t *mixer) noexcept;
+};
 
 #endif

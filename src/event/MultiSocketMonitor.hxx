@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,11 +20,10 @@
 #ifndef MPD_MULTI_SOCKET_MONITOR_HXX
 #define MPD_MULTI_SOCKET_MONITOR_HXX
 
-#include "check.h"
 #include "IdleMonitor.hxx"
 #include "TimerEvent.hxx"
 #include "SocketMonitor.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <forward_list>
 #include <iterator>
@@ -193,6 +192,19 @@ public:
 	 */
 	void ReplaceSocketList(pollfd *pfds, unsigned n) noexcept;
 #endif
+
+	/**
+	 * Invoke a function for each socket which has become ready.
+	 */
+	template<typename F>
+	void ForEachReturnedEvent(F &&f) noexcept {
+		for (auto &i : fds) {
+			if (i.GetReturnedEvents() != 0) {
+				f(i.GetSocket(), i.GetReturnedEvents());
+				i.ClearReturnedEvents();
+			}
+		}
+	}
 
 protected:
 	/**

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h" /* must be first for large file support */
 #include "Mpg123DecoderPlugin.hxx"
 #include "../DecoderAPI.hxx"
 #include "CheckAudioFormat.hxx"
@@ -264,7 +263,7 @@ mpd_mpg123_file_decode(DecoderClient &client, Path path_fs)
 				client.SeekError();
 			else {
 				client.CommandFinished();
-				client.SubmitTimestamp(c / (double)audio_format.sample_rate);
+				client.SubmitTimestamp(audio_format.FramesToTime<FloatDuration>(c));
 			}
 
 			cmd = DecoderCommand::NONE;

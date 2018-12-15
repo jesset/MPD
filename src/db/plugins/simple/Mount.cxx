@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Mount.hxx"
 #include "PrefixedLightSong.hxx"
 #include "song/Filter.hxx"
@@ -66,7 +65,8 @@ PrefixVisitPlaylist(const char *base, const VisitPlaylist &visit_playlist,
 
 void
 WalkMount(const char *base, const Database &db,
-	  const char* uri, bool recursive, const SongFilter *filter,
+	  const char *uri,
+	  const DatabaseSelection &old_selection,
 	  const VisitDirectory &visit_directory, const VisitSong &visit_song,
 	  const VisitPlaylist &visit_playlist)
 {
@@ -87,16 +87,19 @@ WalkMount(const char *base, const Database &db,
 		vp = std::bind(PrefixVisitPlaylist,
 			       base, std::ref(visit_playlist), _1, _2);
 
+	DatabaseSelection selection(old_selection);
+	selection.uri = uri;
+
 	SongFilter prefix_filter;
 
-	if (base != nullptr && filter != nullptr) {
+	if (base != nullptr && selection.filter != nullptr) {
 		/* if the SongFilter contains a LOCATE_TAG_BASE_TYPE
 		   item, copy the SongFilter and drop the mount point
 		   from the filter, because the mounted database
 		   doesn't know its own location within MPD's VFS */
-		prefix_filter = filter->WithoutBasePrefix(base);
-		filter = &prefix_filter;
+		prefix_filter = selection.filter->WithoutBasePrefix(base);
+		selection.filter = &prefix_filter;
 	}
 
-	db.Visit(DatabaseSelection(uri, recursive, filter), vd, vs, vp);
+	db.Visit(selection, vd, vs, vp);
 }

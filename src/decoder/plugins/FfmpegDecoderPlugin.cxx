@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,6 @@
 #define __STDC_CONSTANT_MACROS
 
 #include "lib/ffmpeg/Time.hxx"
-#include "config.h"
 #include "FfmpegDecoderPlugin.hxx"
 #include "lib/ffmpeg/Domain.hxx"
 #include "lib/ffmpeg/Error.hxx"
@@ -105,45 +104,11 @@ ffmpeg_finish() noexcept
 	av_dict_free(&avformat_options);
 }
 
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 25, 0) /* FFmpeg 3.1 */
-
-gcc_pure
-static const AVCodecParameters &
-GetCodecParameters(const AVStream &stream) noexcept
-{
-	return *stream.codecpar;
-}
-
-gcc_pure
-static AVSampleFormat
-GetSampleFormat(const AVCodecParameters &codec_params) noexcept
-{
-	return AVSampleFormat(codec_params.format);
-}
-
-#else
-
-gcc_pure
-static const AVCodecContext &
-GetCodecParameters(const AVStream &stream) noexcept
-{
-	return *stream.codec;
-}
-
-gcc_pure
-static AVSampleFormat
-GetSampleFormat(const AVCodecContext &codec_context) noexcept
-{
-	return codec_context.sample_fmt;
-}
-
-#endif
-
 gcc_pure
 static bool
 IsAudio(const AVStream &stream) noexcept
 {
-	return GetCodecParameters(stream).codec_type == AVMEDIA_TYPE_AUDIO;
+	return stream.codecpar->codec_type == AVMEDIA_TYPE_AUDIO;
 }
 
 gcc_pure
@@ -278,8 +243,6 @@ FfmpegSendFrame(DecoderClient &client, InputStream &is,
 				 codec_context.bit_rate / 1000);
 }
 
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 37, 0)
-
 static DecoderCommand
 FfmpegReceiveFrames(DecoderClient &client, InputStream &is,
 		    AVCodecContext &codec_context,
@@ -324,8 +287,6 @@ FfmpegReceiveFrames(DecoderClient &client, InputStream &is,
 	}
 }
 
-#endif
-
 /**
  * Decode an #AVPacket and send the resulting PCM data to the decoder
  * API.
@@ -357,7 +318,6 @@ ffmpeg_send_packet(DecoderClient &client, InputStream &is,
 								  stream.time_base));
 	}
 
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 37, 0)
 	bool eof = false;
 
 	int err = avcodec_send_packet(&codec_context, &packet);
@@ -386,30 +346,6 @@ ffmpeg_send_packet(DecoderClient &client, InputStream &is,
 
 	if (eof)
 		cmd = DecoderCommand::STOP;
-#else
-	DecoderCommand cmd = DecoderCommand::NONE;
-	while (packet.size > 0 && cmd == DecoderCommand::NONE) {
-		int got_frame = 0;
-		int len = avcodec_decode_audio4(&codec_context,
-						&frame, &got_frame,
-						&packet);
-		if (len < 0) {
-			/* if error, we skip the frame */
-			LogFfmpegError(len, "decoding failed, frame skipped");
-			break;
-		}
-
-		packet.data += len;
-		packet.size -= len;
-
-		if (!got_frame || frame.nb_samples <= 0)
-			continue;
-
-		cmd = FfmpegSendFrame(client, is, codec_context,
-				      frame, skip_bytes,
-				      buffer);
-	}
-#endif
 
 	return cmd;
 }
@@ -585,11 +521,7 @@ FfmpegDecode(DecoderClient &client, InputStream &input,
 
 	AVStream &av_stream = *format_context.streams[audio_stream];
 
-#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(57, 5, 0)
-	AVCodecContext *codec_context = av_stream.codec;
-#endif
-
-	const auto &codec_params = GetCodecParameters(av_stream);
+	const auto &codec_params = *av_stream.codecpar;
 
 	const AVCodecDescriptor *codec_descriptor =
 		avcodec_descriptor_get(codec_params.codec_id);
@@ -604,7 +536,6 @@ FfmpegDecode(DecoderClient &client, InputStream &input,
 		return;
 	}
 
-#if LIBAVFORMAT_VERSION_INT >= AV_VERSION_INT(57, 5, 0)
 	AVCodecContext *codec_context = avcodec_alloc_context3(codec);
 	if (codec_context == nullptr) {
 		LogError(ffmpeg_domain, "avcodec_alloc_context3() failed");
@@ -615,26 +546,7 @@ FfmpegDecode(DecoderClient &client, InputStream &input,
 		avcodec_free_context(&codec_context);
 	};
 
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(57, 25, 0) /* FFmpeg 3.1 */
 	avcodec_parameters_to_context(codec_context, av_stream.codecpar);
-#endif
-#endif
-
-	const SampleFormat sample_format =
-		ffmpeg_sample_format(GetSampleFormat(codec_params));
-	if (sample_format == SampleFormat::UNDEFINED) {
-		// (error message already done by ffmpeg_sample_format())
-		return;
-	}
-
-	const auto audio_format = CheckAudioFormat(codec_params.sample_rate,
-						   sample_format,
-						   codec_params.channels);
-
-	/* the audio format must be read from AVCodecContext by now,
-	   because avcodec_open() has been demonstrated to fill bogus
-	   values into AVCodecContext.channels - a change that will be
-	   reverted later by avcodec_decode_audio3() */
 
 	const int open_result = avcodec_open2(codec_context, codec, nullptr);
 	if (open_result < 0) {
@@ -642,11 +554,16 @@ FfmpegDecode(DecoderClient &client, InputStream &input,
 		return;
 	}
 
-#if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(57, 5, 0)
-	AtScopeExit(codec_context) {
-		avcodec_close(codec_context);
-	};
-#endif
+	const SampleFormat sample_format =
+		ffmpeg_sample_format(codec_context->sample_fmt);
+	if (sample_format == SampleFormat::UNDEFINED) {
+		// (error message already done by ffmpeg_sample_format())
+		return;
+	}
+
+	const auto audio_format = CheckAudioFormat(codec_context->sample_rate,
+						   sample_format,
+						   codec_context->channels);
 
 	const SignedSongTime total_time =
 		av_stream.duration != (int64_t)AV_NOPTS_VALUE
@@ -697,6 +614,10 @@ FfmpegDecode(DecoderClient &client, InputStream &input,
 			/* end of file */
 			break;
 
+		AtScopeExit(&packet) {
+			av_packet_unref(&packet);
+		};
+
 		FfmpegCheckTag(client, input, format_context, audio_stream);
 
 		if (packet.size > 0 && packet.stream_index == audio_stream) {
@@ -710,12 +631,6 @@ FfmpegDecode(DecoderClient &client, InputStream &input,
 			min_frame = 0;
 		} else
 			cmd = client.GetCommand();
-
-#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(56, 25, 100)
-		av_packet_unref(&packet);
-#else
-		av_free_packet(&packet);
-#endif
 	}
 }
 
@@ -769,10 +684,10 @@ FfmpegScanStream(AVFormatContext &format_context,
 		handler.OnDuration(FromFfmpegTime(format_context.duration,
 						  AV_TIME_BASE_Q));
 
-	const auto &codec_params = GetCodecParameters(stream);
+	const auto &codec_params = *stream.codecpar;
 	try {
 		handler.OnAudioFormat(CheckAudioFormat(codec_params.sample_rate,
-						       ffmpeg_sample_format(GetSampleFormat(codec_params)),
+						       ffmpeg_sample_format(AVSampleFormat(codec_params.format)),
 						       codec_params.channels));
 	} catch (...) {
 	}

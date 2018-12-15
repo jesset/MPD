@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,10 +20,9 @@
 #ifndef MPD_GUNZIP_READER_HXX
 #define MPD_GUNZIP_READER_HXX
 
-#include "check.h"
 #include "Reader.hxx"
 #include "util/StaticFifoBuffer.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <zlib.h>
 

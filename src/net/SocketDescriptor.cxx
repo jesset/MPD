@@ -31,6 +31,8 @@
 #include "SocketDescriptor.hxx"
 #include "SocketAddress.hxx"
 #include "StaticSocketAddress.hxx"
+#include "IPv4Address.hxx"
+#include "IPv6Address.hxx"
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -44,10 +46,29 @@
 #include <errno.h>
 #include <string.h>
 
+int
+SocketDescriptor::GetType() const noexcept
+{
+	assert(IsDefined());
+
+	int type;
+	socklen_t size = sizeof(type);
+	return getsockopt(fd, SOL_SOCKET, SO_TYPE,
+			  (char *)&type, &size) == 0
+		? type
+		: -1;
+}
+
+bool
+SocketDescriptor::IsStream() const noexcept
+{
+	return GetType() == SOCK_STREAM;
+}
+
 #ifdef _WIN32
 
 void
-SocketDescriptor::Close()
+SocketDescriptor::Close() noexcept
 {
 	if (IsDefined())
 		::closesocket(Steal());
@@ -56,9 +77,9 @@ SocketDescriptor::Close()
 #endif
 
 SocketDescriptor
-SocketDescriptor::Accept()
+SocketDescriptor::Accept() noexcept
 {
-#ifdef HAVE_ACCEPT4
+#ifdef __linux__
 	int connection_fd = ::accept4(Get(), nullptr, nullptr, SOCK_CLOEXEC);
 #else
 	int connection_fd = ::accept(Get(), nullptr, nullptr);
@@ -69,9 +90,9 @@ SocketDescriptor::Accept()
 }
 
 SocketDescriptor
-SocketDescriptor::AcceptNonBlock() const
+SocketDescriptor::AcceptNonBlock() const noexcept
 {
-#ifdef HAVE_ACCEPT4
+#ifdef __linux__
 	int connection_fd = ::accept4(Get(), nullptr, nullptr,
 				      SOCK_CLOEXEC|SOCK_NONBLOCK);
 #else
@@ -83,10 +104,10 @@ SocketDescriptor::AcceptNonBlock() const
 }
 
 SocketDescriptor
-SocketDescriptor::AcceptNonBlock(StaticSocketAddress &address) const
+SocketDescriptor::AcceptNonBlock(StaticSocketAddress &address) const noexcept
 {
 	address.SetMaxSize();
-#ifdef HAVE_ACCEPT4
+#ifdef __linux__
 	int connection_fd = ::accept4(Get(), address, &address.size,
 				      SOCK_CLOEXEC|SOCK_NONBLOCK);
 #else
@@ -98,7 +119,7 @@ SocketDescriptor::AcceptNonBlock(StaticSocketAddress &address) const
 }
 
 bool
-SocketDescriptor::Connect(SocketAddress address)
+SocketDescriptor::Connect(SocketAddress address) noexcept
 {
 	assert(address.IsDefined());
 
@@ -106,7 +127,7 @@ SocketDescriptor::Connect(SocketAddress address)
 }
 
 bool
-SocketDescriptor::Create(int domain, int type, int protocol)
+SocketDescriptor::Create(int domain, int type, int protocol) noexcept
 {
 #ifdef _WIN32
 	static bool initialised = false;
@@ -131,7 +152,7 @@ SocketDescriptor::Create(int domain, int type, int protocol)
 }
 
 bool
-SocketDescriptor::CreateNonBlock(int domain, int type, int protocol)
+SocketDescriptor::CreateNonBlock(int domain, int type, int protocol) noexcept
 {
 #ifdef SOCK_NONBLOCK
 	type |= SOCK_NONBLOCK;
@@ -151,7 +172,8 @@ SocketDescriptor::CreateNonBlock(int domain, int type, int protocol)
 
 bool
 SocketDescriptor::CreateSocketPair(int domain, int type, int protocol,
-				 SocketDescriptor &a, SocketDescriptor &b)
+				   SocketDescriptor &a,
+				   SocketDescriptor &b) noexcept
 {
 #ifdef SOCK_CLOEXEC
 	/* implemented since Linux 2.6.27 */
@@ -169,16 +191,17 @@ SocketDescriptor::CreateSocketPair(int domain, int type, int protocol,
 
 bool
 SocketDescriptor::CreateSocketPairNonBlock(int domain, int type, int protocol,
-					 SocketDescriptor &a, SocketDescriptor &b)
+					   SocketDescriptor &a,
+					   SocketDescriptor &b) noexcept
 {
-#ifdef SOCK_CLOEXEC
-	/* implemented since Linux 2.6.27 */
-	type |= SOCK_CLOEXEC;
+#ifdef SOCK_NONBLOCK
+	type |= SOCK_NONBLOCK;
 #endif
+
 	if (!CreateSocketPair(domain, type, protocol, a, b))
 		return false;
 
-#ifndef __linux__
+#ifndef SOCK_NONBLOCK
 	a.SetNonBlocking();
 	b.SetNonBlocking();
 #endif
@@ -189,7 +212,7 @@ SocketDescriptor::CreateSocketPairNonBlock(int domain, int type, int protocol,
 #endif
 
 int
-SocketDescriptor::GetError()
+SocketDescriptor::GetError() noexcept
 {
 	assert(IsDefined());
 
@@ -200,6 +223,32 @@ SocketDescriptor::GetError()
 		? s_err
 		: errno;
 }
+
+size_t
+SocketDescriptor::GetOption(int level, int name,
+			    void *value, size_t size) const noexcept
+{
+	assert(IsDefined());
+
+	socklen_t size2 = size;
+	return getsockopt(fd, level, name, (char *)value, &size2) == 0
+		? size2
+		: 0;
+}
+
+#ifdef HAVE_STRUCT_UCRED
+
+struct ucred
+SocketDescriptor::GetPeerCredentials() const noexcept
+{
+	struct ucred cred;
+	if (GetOption(SOL_SOCKET, SO_PEERCRED,
+		      &cred, sizeof(cred)) < sizeof(cred))
+		cred.pid = -1;
+	return cred;
+}
+
+#endif
 
 #ifdef _WIN32
 
@@ -214,7 +263,7 @@ SocketDescriptor::SetNonBlocking() noexcept
 
 bool
 SocketDescriptor::SetOption(int level, int name,
-			    const void *value, size_t size)
+			    const void *value, size_t size) noexcept
 {
 	assert(IsDefined());
 
@@ -223,61 +272,57 @@ SocketDescriptor::SetOption(int level, int name,
 }
 
 bool
-SocketDescriptor::SetKeepAlive(bool value)
+SocketDescriptor::SetKeepAlive(bool value) noexcept
 {
 	return SetBoolOption(SOL_SOCKET, SO_KEEPALIVE, value);
 }
 
 bool
-SocketDescriptor::SetReuseAddress(bool value)
+SocketDescriptor::SetReuseAddress(bool value) noexcept
 {
 	return SetBoolOption(SOL_SOCKET, SO_REUSEADDR, value);
 }
 
 #ifdef __linux__
 
-#ifdef SO_REUSEPORT
-
 bool
-SocketDescriptor::SetReusePort(bool value)
+SocketDescriptor::SetReusePort(bool value) noexcept
 {
 	return SetBoolOption(SOL_SOCKET, SO_REUSEPORT, value);
 }
 
-#endif
-
 bool
-SocketDescriptor::SetFreeBind(bool value)
+SocketDescriptor::SetFreeBind(bool value) noexcept
 {
 	return SetBoolOption(IPPROTO_IP, IP_FREEBIND, value);
 }
 
 bool
-SocketDescriptor::SetNoDelay(bool value)
+SocketDescriptor::SetNoDelay(bool value) noexcept
 {
 	return SetBoolOption(IPPROTO_TCP, TCP_NODELAY, value);
 }
 
 bool
-SocketDescriptor::SetCork(bool value)
+SocketDescriptor::SetCork(bool value) noexcept
 {
 	return SetBoolOption(IPPROTO_TCP, TCP_CORK, value);
 }
 
 bool
-SocketDescriptor::SetTcpDeferAccept(const int &seconds)
+SocketDescriptor::SetTcpDeferAccept(const int &seconds) noexcept
 {
 	return SetOption(IPPROTO_TCP, TCP_DEFER_ACCEPT, &seconds, sizeof(seconds));
 }
 
 bool
-SocketDescriptor::SetV6Only(bool value)
+SocketDescriptor::SetV6Only(bool value) noexcept
 {
 	return SetBoolOption(IPPROTO_IPV6, IPV6_V6ONLY, value);
 }
 
 bool
-SocketDescriptor::SetBindToDevice(const char *name)
+SocketDescriptor::SetBindToDevice(const char *name) noexcept
 {
 	return SetOption(SOL_SOCKET, SO_BINDTODEVICE, name, strlen(name));
 }
@@ -285,17 +330,50 @@ SocketDescriptor::SetBindToDevice(const char *name)
 #ifdef TCP_FASTOPEN
 
 bool
-SocketDescriptor::SetTcpFastOpen(int qlen)
+SocketDescriptor::SetTcpFastOpen(int qlen) noexcept
 {
 	return SetOption(SOL_TCP, TCP_FASTOPEN, &qlen, sizeof(qlen));
 }
 
 #endif
 
+bool
+SocketDescriptor::AddMembership(const IPv4Address &address) noexcept
+{
+	struct ip_mreq r{address.GetAddress(), IPv4Address(0).GetAddress()};
+	return setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+			  &r, sizeof(r)) == 0;
+}
+
+bool
+SocketDescriptor::AddMembership(const IPv6Address &address) noexcept
+{
+	struct ipv6_mreq r{address.GetAddress(), 0};
+	r.ipv6mr_interface = address.GetScopeId();
+	return setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
+			  &r, sizeof(r)) == 0;
+}
+
+bool
+SocketDescriptor::AddMembership(SocketAddress address) noexcept
+{
+	switch (address.GetFamily()) {
+	case AF_INET:
+		return AddMembership(IPv4Address(address));
+
+	case AF_INET6:
+		return AddMembership(IPv6Address(address));
+
+	default:
+		errno = EINVAL;
+		return false;
+	}
+}
+
 #endif
 
 bool
-SocketDescriptor::Bind(SocketAddress address)
+SocketDescriptor::Bind(SocketAddress address) noexcept
 {
 	return bind(Get(), address.GetAddress(), address.GetSize()) == 0;
 }
@@ -303,7 +381,7 @@ SocketDescriptor::Bind(SocketAddress address)
 #ifdef __linux__
 
 bool
-SocketDescriptor::AutoBind()
+SocketDescriptor::AutoBind() noexcept
 {
 	static constexpr sa_family_t family = AF_LOCAL;
 	return Bind(SocketAddress((const struct sockaddr *)&family,
@@ -313,13 +391,13 @@ SocketDescriptor::AutoBind()
 #endif
 
 bool
-SocketDescriptor::Listen(int backlog)
+SocketDescriptor::Listen(int backlog) noexcept
 {
 	return listen(Get(), backlog) == 0;
 }
 
 StaticSocketAddress
-SocketDescriptor::GetLocalAddress() const
+SocketDescriptor::GetLocalAddress() const noexcept
 {
 	assert(IsDefined());
 
@@ -332,7 +410,7 @@ SocketDescriptor::GetLocalAddress() const
 }
 
 StaticSocketAddress
-SocketDescriptor::GetPeerAddress() const
+SocketDescriptor::GetPeerAddress() const noexcept
 {
 	assert(IsDefined());
 
@@ -345,7 +423,7 @@ SocketDescriptor::GetPeerAddress() const
 }
 
 ssize_t
-SocketDescriptor::Read(void *buffer, size_t length)
+SocketDescriptor::Read(void *buffer, size_t length) noexcept
 {
 	int flags = 0;
 #ifndef _WIN32
@@ -356,7 +434,7 @@ SocketDescriptor::Read(void *buffer, size_t length)
 }
 
 ssize_t
-SocketDescriptor::Write(const void *buffer, size_t length)
+SocketDescriptor::Write(const void *buffer, size_t length) noexcept
 {
 	int flags = 0;
 #ifdef __linux__
@@ -369,7 +447,7 @@ SocketDescriptor::Write(const void *buffer, size_t length)
 #ifdef _WIN32
 
 int
-SocketDescriptor::WaitReadable(int timeout_ms) const
+SocketDescriptor::WaitReadable(int timeout_ms) const noexcept
 {
 	assert(IsDefined());
 
@@ -388,7 +466,7 @@ SocketDescriptor::WaitReadable(int timeout_ms) const
 }
 
 int
-SocketDescriptor::WaitWritable(int timeout_ms) const
+SocketDescriptor::WaitWritable(int timeout_ms) const noexcept
 {
 	assert(IsDefined());
 
@@ -410,7 +488,7 @@ SocketDescriptor::WaitWritable(int timeout_ms) const
 
 ssize_t
 SocketDescriptor::Read(void *buffer, size_t length,
-		       StaticSocketAddress &address)
+		       StaticSocketAddress &address) noexcept
 {
 	int flags = 0;
 #ifndef _WIN32
@@ -428,7 +506,7 @@ SocketDescriptor::Read(void *buffer, size_t length,
 
 ssize_t
 SocketDescriptor::Write(const void *buffer, size_t length,
-			SocketAddress address)
+			SocketAddress address) noexcept
 {
 	int flags = 0;
 #ifndef _WIN32
@@ -441,3 +519,25 @@ SocketDescriptor::Write(const void *buffer, size_t length,
 	return ::sendto(Get(), (const char *)buffer, length, flags,
 			address.GetAddress(), address.GetSize());
 }
+
+#ifndef _WIN32
+
+void
+SocketDescriptor::Shutdown() noexcept
+{
+    shutdown(Get(), SHUT_RDWR);
+}
+
+void
+SocketDescriptor::ShutdownRead() noexcept
+{
+    shutdown(Get(), SHUT_RD);
+}
+
+void
+SocketDescriptor::ShutdownWrite() noexcept
+{
+    shutdown(Get(), SHUT_WR);
+}
+
+#endif

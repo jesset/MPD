@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,9 +22,12 @@
 
 #include "Visitor.hxx"
 #include "tag/Type.h"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <chrono>
+#include <map>
+#include <set>
+#include <string>
 
 struct DatabasePlugin;
 struct DatabaseStats;
@@ -35,27 +38,24 @@ class TagMask;
 class Database {
 	const DatabasePlugin &plugin;
 
-public:
-	Database(const DatabasePlugin &_plugin)
+protected:
+	Database(const DatabasePlugin &_plugin) noexcept
 		:plugin(_plugin) {}
 
+public:
 	/**
 	 * Free instance data.
          */
-	virtual ~Database() {}
+	virtual ~Database() noexcept = default;
 
-	const DatabasePlugin &GetPlugin() const {
+	const DatabasePlugin &GetPlugin() const noexcept {
 		return plugin;
-	}
-
-	bool IsPlugin(const DatabasePlugin &other) const {
-		return &plugin == &other;
 	}
 
 	/**
          * Open the database.  Read it into memory if applicable.
 	 *
-	 * Throws #DatabaseError or std::runtime_error on error.
+	 * Throws on error (e.g. #DatabaseError).
 	 */
 	virtual void Open() {
 	}
@@ -63,15 +63,14 @@ public:
 	/**
          * Close the database, free allocated memory.
 	 */
-	virtual void Close() {}
+	virtual void Close() noexcept {}
 
 	/**
          * Look up a song (including tag data) in the database.  When
          * you don't need this anymore, call ReturnSong().
 	 *
-	 * Throws std::runtime_error (or its derivative
-	 * #DatabaseError) on error.  "Not found" is an error that
-	 * throws DatabaseErrorCode::NOT_FOUND.
+	 * Throws on error.  "Not found" is an error that throws
+	 * DatabaseErrorCode::NOT_FOUND.
 	 *
 	 * @param uri_utf8 the URI of the song within the music
 	 * directory (UTF-8)
@@ -83,10 +82,12 @@ public:
 	 * Mark the song object as "unused".  Call this on objects
 	 * returned by GetSong().
 	 */
-	virtual void ReturnSong(const LightSong *song) const = 0;
+	virtual void ReturnSong(const LightSong *song) const noexcept = 0;
 
 	/**
 	 * Visit the selected entities.
+	 *
+	 * Throws on error.
 	 */
 	virtual void Visit(const DatabaseSelection &selection,
 			   VisitDirectory visit_directory,
@@ -105,18 +106,23 @@ public:
 	}
 
 	/**
-	 * Visit all unique tag values.
+	 * Collect unique values of the given tag type.
+	 *
+	 * Throws on error.
 	 */
-	virtual void VisitUniqueTags(const DatabaseSelection &selection,
-				     TagType tag_type, TagMask group_mask,
-				     VisitTag visit_tag) const = 0;
+	virtual std::map<std::string, std::set<std::string>> CollectUniqueTags(const DatabaseSelection &selection,
+									       TagType tag_type,
+									       TagType group=TAG_NUM_OF_ITEM_TYPES) const = 0;
 
+	/**
+	 * Throws on error.
+	 */
 	virtual DatabaseStats GetStats(const DatabaseSelection &selection) const = 0;
 
 	/**
 	 * Update the database.
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 *
 	 * @return the job id or 0 if not implemented
 	 */

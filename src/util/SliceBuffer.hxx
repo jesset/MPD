@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -87,6 +87,14 @@ public:
 		return n_allocated == buffer.size();
 	}
 
+	void DiscardMemory() noexcept {
+		assert(empty());
+
+		n_initialized = 0;
+		buffer.Discard();
+		available = nullptr;
+	}
+
 	template<typename... Args>
 	T *Allocate(Args&&... args) {
 		assert(n_initialized <= buffer.size());
@@ -131,9 +139,7 @@ public:
 		/* give memory back to the kernel when the last slice
 		   was freed */
 		if (n_allocated == 0) {
-			buffer.Discard();
-			n_initialized = 0;
-			available = nullptr;
+			DiscardMemory();
 		}
 	}
 };

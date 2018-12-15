@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,11 +20,10 @@
 #ifndef MPD_DECODER_CLIENT_HXX
 #define MPD_DECODER_CLIENT_HXX
 
-#include "check.h"
-#include "DecoderCommand.hxx"
+#include "Command.hxx"
 #include "Chrono.hxx"
 #include "input/Ptr.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <stdint.h>
 
@@ -115,7 +114,7 @@ public:
 	 * use this function if it thinks that adding to the time stamp based
 	 * on the buffer size won't work.
 	 */
-	virtual void SubmitTimestamp(double t) = 0;
+	virtual void SubmitTimestamp(FloatDuration t) = 0;
 
 	/**
 	 * This function is called by the decoder plugin when it has

@@ -57,6 +57,7 @@ sys.path[0] = os.path.join(mpd_path, 'python')
 
 # output directories
 from build.dirs import lib_path, tarball_path, src_path
+from build.meson import configure as run_meson
 
 arch_path = os.path.join(lib_path, arch)
 build_path = os.path.join(arch_path, 'build')
@@ -132,19 +133,29 @@ class AndroidNdkToolchain:
         libcxx_path = os.path.join(ndk_path, 'sources/cxx-stl/llvm-libc++')
         libcxx_libs_path = os.path.join(libcxx_path, 'libs', android_abi)
 
-        libstdcxx_flags = '-stdlib=libc++'
+        libstdcxx_flags = ''
         libstdcxx_cxxflags = libstdcxx_flags + ' -isystem ' + os.path.join(libcxx_path, 'include') + ' -isystem ' + os.path.join(ndk_path, 'sources/android/support/include')
-        libstdcxx_ldflags = libstdcxx_flags + ' -static-libstdc++ -L' + libcxx_libs_path
+        libstdcxx_ldflags = libstdcxx_flags + ' -L' + libcxx_libs_path
+        libstdcxx_libs = '-lc++_static -lc++abi'
 
         if use_cxx:
             self.cxxflags += ' ' + libstdcxx_cxxflags
             self.ldflags += ' ' + libstdcxx_ldflags
+            self.libs += ' ' + libstdcxx_libs
 
         self.env = dict(os.environ)
 
         # redirect pkg-config to use our root directory instead of the
         # default one on the build host
-        self.env['PKG_CONFIG_LIBDIR'] = os.path.join(install_prefix, 'lib/pkgconfig')
+        import shutil
+        bin_dir = os.path.join(install_prefix, 'bin')
+        try:
+            os.makedirs(bin_dir)
+        except:
+            pass
+        self.pkg_config = shutil.copy(os.path.join(mpd_path, 'build', 'pkg-config.sh'),
+                                      os.path.join(bin_dir, 'pkg-config'))
+        self.env['PKG_CONFIG'] = self.pkg_config
 
 # a list of third-party libraries to be used by MPD on Android
 from build.libs import *
@@ -173,32 +184,13 @@ for x in thirdparty_libs:
 toolchain = AndroidNdkToolchain(tarball_path, src_path, build_path,
                                 use_cxx=True)
 
-configure = [
-    os.path.join(mpd_path, 'configure'),
-    'CC=' + toolchain.cc,
-    'CXX=' + toolchain.cxx,
-    'CFLAGS=' + toolchain.cflags,
-    'CXXFLAGS=' + toolchain.cxxflags,
-    'CPPFLAGS=' + toolchain.cppflags,
-    'LDFLAGS=' + toolchain.ldflags,
-    'LIBS=' + toolchain.libs,
-    'AR=' + toolchain.ar,
-    'RANLIB=' + toolchain.ranlib,
-    'STRIP=' + toolchain.strip,
-    '--host=' + toolchain.arch,
-    '--prefix=' + toolchain.install_prefix,
-    '--with-sysroot=' + toolchain.sysroot,
-    '--with-android-sdk=' + sdk_path,
+configure_args += [
+    '-Dandroid_sdk=' + sdk_path,
+    '-Dandroid_ndk=' + ndk_path,
+    '-Dandroid_abi=' + android_abi,
+    '-Dandroid_strip=' + toolchain.strip,
+]
 
-    '--enable-silent-rules',
-
-    '--disable-icu',
-
-] + configure_args
-
-from build.cmdline import concatenate_cmdline_variables
-configure = concatenate_cmdline_variables(configure,
-    set(('CFLAGS', 'CXXFLAGS', 'CPPFLAGS', 'LDFLAGS', 'LIBS')))
-
-subprocess.check_call(configure, env=toolchain.env)
-subprocess.check_call(['/usr/bin/make', '--quiet', '-j12'], env=toolchain.env)
+from build.meson import configure as run_meson
+run_meson(toolchain, mpd_path, '.', configure_args)
+subprocess.check_call(['/usr/bin/ninja'], env=toolchain.env)

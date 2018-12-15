@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "PartitionCommands.hxx"
 #include "Request.hxx"
 #include "Instance.hxx"
@@ -25,7 +24,6 @@
 #include "IdleFlags.hxx"
 #include "client/Client.hxx"
 #include "client/Response.hxx"
-#include "player/Thread.hxx"
 #include "util/CharUtil.hxx"
 
 CommandResult
@@ -103,7 +101,6 @@ handle_newpartition(Client &client, Request request, Response &response)
 					 // TODO: use real configuration
 					 16384,
 					 1024,
-					 128,
 					 AudioFormat::Undefined(),
 					 ReplayGainConfig());
 	auto &partition = instance.partitions.back();
@@ -111,8 +108,6 @@ handle_newpartition(Client &client, Request request, Response &response)
 					ReplayGainConfig(),
 					partition.pc);
 	partition.UpdateEffectiveReplayGainMode();
-	StartPlayerThread(partition.pc);
-	partition.pc.LockUpdateAudio();
 
 	instance.EmitIdle(IDLE_PARTITION);
 

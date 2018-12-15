@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,13 +24,12 @@
  * plugins.
  */
 
-#include "config.h"
 #include "filter/FilterPlugin.hxx"
 #include "filter/Filter.hxx"
 #include "filter/Prepared.hxx"
 #include "filter/FilterRegistry.hxx"
 #include "AudioFormat.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 #include "util/ConstBuffer.hxx"
 
 class NullFilter final : public Filter {

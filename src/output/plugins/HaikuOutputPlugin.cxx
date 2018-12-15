@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  * Copyright (C) 2014-2015 François 'mmu_man' Revol
  *
@@ -18,7 +18,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "HaikuOutputPlugin.hxx"
 #include "../OutputAPI.hxx"
 #include "mixer/MixerList.hxx"
@@ -37,6 +36,8 @@
 #include <Resources.h>
 #include <StringList.h>
 #include <SoundPlayer.h>
+
+#include <cmath>
 
 #include <string.h>
 
@@ -439,7 +440,7 @@ haiku_output_get_volume(HaikuOutput &haiku)
 	if (soundPlayer == NULL || soundPlayer->InitCheck() != B_OK)
 		return 0;
 
-	return (int)(soundPlayer->Volume() * 100 + 0.5);
+	return lround(soundPlayer->Volume() * 100);
 }
 
 bool

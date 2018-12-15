@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,7 @@
 
 #include "Type.h"
 #include "Chrono.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <vector>
 #include <memory>
@@ -131,6 +131,12 @@ public:
 	 * exist in this object.
 	 */
 	void Complement(const Tag &other) noexcept;
+
+	/**
+	 * A variant of AddItem() which does not attempt to fix up the
+	 * value and does not check whether the tag type is disabled.
+	 */
+	void AddItemUnchecked(TagType type, StringView value) noexcept;
 
 	/**
 	 * Appends a new tag item.

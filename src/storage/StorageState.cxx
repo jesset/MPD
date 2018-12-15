@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,6 @@
  *
  */
 
-#include "config.h"
 #include "StorageState.hxx"
 #include "fs/io/TextFile.hxx"
 #include "fs/io/BufferedOutputStream.hxx"
@@ -107,10 +106,9 @@ storage_state_restore(const char *line, TextFile &file, Instance &instance)
 		return true;
 	}
 
-	Database *db = instance.database;
-	if (db != nullptr && db->IsPlugin(simple_db_plugin)) {
+	if (auto *db = dynamic_cast<SimpleDatabase *>(instance.database)) {
 		try {
-			((SimpleDatabase *)db)->Mount(uri.c_str(), url.c_str());
+			db->Mount(uri.c_str(), url.c_str());
 		} catch (...) {
 			FormatError(std::current_exception(),
 				    "Failed to restore mount to %s",

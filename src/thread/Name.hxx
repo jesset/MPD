@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +19,8 @@
 
 #ifndef MPD_THREAD_NAME_HXX
 #define MPD_THREAD_NAME_HXX
+
+#include "config.h"
 
 #if defined(HAVE_PTHREAD_SETNAME_NP) && !defined(__NetBSD__)
 #  define HAVE_THREAD_NAME

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,18 +22,20 @@
  *
  */
 
-#include "config.h"
 #include "ExcludeList.hxx"
 #include "fs/Path.hxx"
 #include "fs/NarrowPath.hxx"
 #include "input/TextInputStream.hxx"
 #include "util/StringStrip.hxx"
 #include "Log.hxx"
+#include "config.h"
 
 #include <exception>
 
 #include <assert.h>
 #include <string.h>
+
+#ifdef HAVE_CLASS_GLOB
 
 inline void
 ExcludeList::ParseLine(char *line) noexcept
@@ -42,6 +44,8 @@ ExcludeList::ParseLine(char *line) noexcept
 	if (*p != 0 && *p != '#')
 		patterns.emplace_front(p);
 }
+
+#endif
 
 bool
 ExcludeList::Load(InputStreamPtr is)
@@ -54,7 +58,7 @@ ExcludeList::Load(InputStreamPtr is)
 		ParseLine(line);
 #else
 	/* not implemented */
-	(void)path_fs;
+	(void)is;
 #endif
 
 	return true;

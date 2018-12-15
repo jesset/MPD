@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,11 +17,10 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Bridge.hxx"
 #include "DecoderAPI.hxx"
-#include "DecoderError.hxx"
-#include "DecoderControl.hxx"
+#include "Domain.hxx"
+#include "Control.hxx"
 #include "song/DetachedSong.hxx"
 #include "pcm/PcmConvert.hxx"
 #include "MusicPipe.hxx"
@@ -290,7 +289,7 @@ DecoderBridge::CommandFinished()
 		assert(dc.pipe->IsEmpty());
 
 		initial_seek_running = false;
-		timestamp = dc.start_time.ToDoubleS();
+		timestamp = std::chrono::duration_cast<FloatDuration>(dc.start_time);
 		absolute_frame = dc.start_time.ToScale<uint64_t>(dc.in_audio_format.sample_rate);
 		return;
 	}
@@ -307,7 +306,7 @@ DecoderBridge::CommandFinished()
 		if (convert != nullptr)
 			convert->Reset();
 
-		timestamp = dc.seek_time.ToDoubleS();
+		timestamp = std::chrono::duration_cast<FloatDuration>(dc.seek_time);
 		absolute_frame = dc.seek_time.ToScale<uint64_t>(dc.in_audio_format.sample_rate);
 	}
 
@@ -413,12 +412,12 @@ try {
 }
 
 void
-DecoderBridge::SubmitTimestamp(double t)
+DecoderBridge::SubmitTimestamp(FloatDuration t)
 {
-	assert(t >= 0);
+	assert(t.count() >= 0);
 
 	timestamp = t;
-	absolute_frame = uint64_t(t * dc.in_audio_format.sample_rate);
+	absolute_frame = uint64_t(t.count() * dc.in_audio_format.sample_rate);
 }
 
 DecoderCommand
@@ -506,7 +505,7 @@ DecoderBridge::SubmitData(InputStream *is,
 
 		const auto dest =
 			chunk->Write(dc.out_audio_format,
-				     SongTime::FromS(timestamp) -
+				     SongTime::Cast(timestamp) -
 				     dc.song->GetStartTime(),
 				     kbit_rate);
 		if (dest.empty()) {
@@ -532,8 +531,7 @@ DecoderBridge::SubmitData(InputStream *is,
 		data = (const uint8_t *)data + nbytes;
 		length -= nbytes;
 
-		timestamp += (double)nbytes /
-			dc.out_audio_format.GetTimeToSize();
+		timestamp += dc.out_audio_format.SizeToTime<FloatDuration>(nbytes);
 	}
 
 	absolute_frame += data_frames;

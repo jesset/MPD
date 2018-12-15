@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,13 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
-#include "test_pcm_all.hxx"
 #include "test_pcm_util.hxx"
 #include "pcm/PcmDither.cxx"
 
-void
-PcmDitherTest::TestDither24()
+#include <gtest/gtest.h>
+
+TEST(PcmTest, Dither24)
 {
 	constexpr unsigned N = 509;
 	const auto src = TestDataBuffer<int32_t, N>(RandomInt24());
@@ -33,13 +32,12 @@ PcmDitherTest::TestDither24()
 	dither.Dither24To16(dest, src.begin(), src.end());
 
 	for (unsigned i = 0; i < N; ++i) {
-		CPPUNIT_ASSERT(dest[i] >= (src[i] >> 8) - 8);
-		CPPUNIT_ASSERT(dest[i] < (src[i] >> 8) + 8);
+		EXPECT_GE(dest[i], (src[i] >> 8) - 8);
+		EXPECT_LT(dest[i], (src[i] >> 8) + 8);
 	}
 }
 
-void
-PcmDitherTest::TestDither32()
+TEST(PcmTest, Dither32)
 {
 	constexpr unsigned N = 509;
 	const auto src = TestDataBuffer<int32_t, N>();
@@ -49,7 +47,7 @@ PcmDitherTest::TestDither32()
 	dither.Dither32To16(dest, src.begin(), src.end());
 
 	for (unsigned i = 0; i < N; ++i) {
-		CPPUNIT_ASSERT(dest[i] >= (src[i] >> 16) - 8);
-		CPPUNIT_ASSERT(dest[i] < (src[i] >> 16) + 8);
+		EXPECT_GE(dest[i], (src[i] >> 16) - 8);
+		EXPECT_LT(dest[i], (src[i] >> 16) + 8);
 	}
 }

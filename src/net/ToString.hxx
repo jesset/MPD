@@ -30,8 +30,7 @@
 #ifndef NET_TO_STRING_HXX
 #define NET_TO_STRING_HXX
 
-#include "check.h"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <string>
 

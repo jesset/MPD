@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2012-2018 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,16 +30,14 @@
 #ifndef FILE_DESCRIPTOR_HXX
 #define FILE_DESCRIPTOR_HXX
 
-#include "check.h"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <utility>
 
-#include <assert.h>
 #include <unistd.h>
 #include <sys/types.h>
 
-#ifdef USE_SIGNALFD
+#ifdef __linux__
 #include <signal.h>
 #endif
 
@@ -59,13 +57,17 @@ protected:
 
 public:
 	FileDescriptor() = default;
-	explicit constexpr FileDescriptor(int _fd):fd(_fd) {}
+	explicit constexpr FileDescriptor(int _fd) noexcept:fd(_fd) {}
 
-	constexpr bool operator==(FileDescriptor other) const {
+	constexpr bool operator==(FileDescriptor other) const noexcept {
 		return fd == other.fd;
 	}
 
-	constexpr bool IsDefined() const {
+	constexpr bool operator!=(FileDescriptor other) const noexcept {
+		return !(*this == other);
+	}
+
+	constexpr bool IsDefined() const noexcept {
 		return fd >= 0;
 	}
 
@@ -75,13 +77,25 @@ public:
 	 */
 	gcc_pure
 	bool IsValid() const noexcept;
+
+	/**
+	 * Ask the kernel whether this is a pipe.
+	 */
+	gcc_pure
+	bool IsPipe() const noexcept;
+
+	/**
+	 * Ask the kernel whether this is a socket descriptor.
+	 */
+	gcc_pure
+	bool IsSocket() const noexcept;
 #endif
 
 	/**
 	 * Returns the file descriptor.  This may only be called if
 	 * IsDefined() returns true.
 	 */
-	constexpr int Get() const {
+	constexpr int Get() const noexcept {
 		return fd;
 	}
 
@@ -97,9 +111,14 @@ public:
 		fd = -1;
 	}
 
-	static constexpr FileDescriptor Undefined() {
+	static constexpr FileDescriptor Undefined() noexcept {
 		return FileDescriptor(-1);
 	}
+
+#ifdef __linux__
+	bool Open(FileDescriptor dir, const char *pathname,
+		  int flags, mode_t mode=0666) noexcept;
+#endif
 
 	bool Open(const char *pathname, int flags, mode_t mode=0666) noexcept;
 
@@ -111,6 +130,11 @@ public:
 
 #ifndef _WIN32
 	bool OpenNonBlocking(const char *pathname) noexcept;
+#endif
+
+#ifdef __linux__
+	static bool CreatePipe(FileDescriptor &r, FileDescriptor &w,
+			       int flags) noexcept;
 #endif
 
 	static bool CreatePipe(FileDescriptor &r, FileDescriptor &w) noexcept;
@@ -147,8 +171,8 @@ public:
 	/**
 	 * Duplicate the file descriptor onto the given file descriptor.
 	 */
-	bool Duplicate(int new_fd) const noexcept {
-		return ::dup2(Get(), new_fd) == 0;
+	bool Duplicate(FileDescriptor new_fd) const noexcept {
+		return ::dup2(Get(), new_fd.Get()) == 0;
 	}
 
 	/**
@@ -157,18 +181,12 @@ public:
 	 * this method to inject file descriptors into a new child
 	 * process, to be used by a newly executed program.
 	 */
-	bool CheckDuplicate(int new_fd) noexcept;
+	bool CheckDuplicate(FileDescriptor new_fd) noexcept;
 #endif
 
-#ifdef USE_EVENTFD
+#ifdef __linux__
 	bool CreateEventFD(unsigned initval=0) noexcept;
-#endif
-
-#ifdef USE_SIGNALFD
 	bool CreateSignalFD(const sigset_t *mask) noexcept;
-#endif
-
-#ifdef HAVE_INOTIFY_INIT
 	bool CreateInotify() noexcept;
 #endif
 

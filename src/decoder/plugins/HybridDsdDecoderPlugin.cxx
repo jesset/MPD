@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "HybridDsdDecoderPlugin.hxx"
 #include "../DecoderAPI.hxx"
 #include "input/InputStream.hxx"
@@ -183,7 +182,7 @@ HybridDsdDecode(DecoderClient &client, InputStream &input)
 
 	try {
 		auto result = FindHybridDsdData(client, input);
-		auto duration = SignedSongTime::FromS(result.second / result.first.GetTimeToSize());
+		auto duration = result.first.SizeToTime<SignedSongTime>(result.second);
 		client.Ready(result.first, true, duration);
 		frame_size = result.first.GetFrameSize();
 		kbit_rate = frame_size * result.first.sample_rate /

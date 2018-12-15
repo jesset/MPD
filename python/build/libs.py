@@ -9,8 +9,8 @@ from build.ffmpeg import FfmpegProject
 from build.boost import BoostProject
 
 libmpdclient = MesonProject(
-    'https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.14.tar.xz',
-    '0a84e2791bfe3077cf22ee1784c805d5bb550803dffe56a39aa3690a38061372',
+    'https://www.musicpd.org/download/libmpdclient/2/libmpdclient-2.16.tar.xz',
+    'fa6bdab67c0e0490302b38f00c27b4959735c3ec8aef7a88327adb1407654464',
     'lib/libmpdclient.a',
 )
 
@@ -38,8 +38,8 @@ libvorbis = AutotoolsProject(
 )
 
 opus = AutotoolsProject(
-    'https://archive.mozilla.org/pub/opus/opus-1.2.1.tar.gz',
-    'cfafd339ccd9c5ef8d6ab15d7e1a412c054bf4cb4ecbbbcc78c12ef2def70732',
+    'https://archive.mozilla.org/pub/opus/opus-1.3.tar.gz',
+    '4f3d69aefdf2dbaf9825408e452a8a414ffc60494c70633560700398820dc550',
     'lib/libopus.a',
     [
         '--disable-shared', '--enable-static',
@@ -112,8 +112,8 @@ liblame = AutotoolsProject(
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-4.0.2.tar.xz',
-    'a95c0cc9eb990e94031d2183f2e6e444cc61c99f6f182d1575c433d62afb2f97',
+    'http://ffmpeg.org/releases/ffmpeg-4.1.tar.xz',
+    'a38ec4d026efb58506a99ad5cd23d5a9793b4bf415f2c4c2e9c1bb444acd1994',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -341,8 +341,8 @@ ffmpeg = FfmpegProject(
 )
 
 curl = AutotoolsProject(
-    'http://curl.haxx.se/download/curl-7.61.0.tar.xz',
-    'ef6e55192d04713673b4409ccbcb4cb6cd723137d6e10ca45b0c593a454e1720',
+    'http://curl.haxx.se/download/curl-7.62.0.tar.xz',
+    'dab5643a5fe775ae92570b9f3df6b0ef4bc2a827a959361fb130c73b721275c1',
     'lib/libcurl.a',
     [
         '--disable-shared', '--enable-static',

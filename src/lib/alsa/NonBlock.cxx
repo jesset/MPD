@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,14 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "NonBlock.hxx"
 #include "event/MultiSocketMonitor.hxx"
 #include "util/RuntimeError.hxx"
 
 std::chrono::steady_clock::duration
-PrepareAlsaPcmSockets(MultiSocketMonitor &m, snd_pcm_t *pcm,
-		      ReusableArray<pollfd> &pfd_buffer)
+AlsaNonBlockPcm::PrepareSockets(MultiSocketMonitor &m, snd_pcm_t *pcm)
 {
 	int count = snd_pcm_poll_descriptors_count(pcm);
 	if (count <= 0) {
@@ -50,9 +48,35 @@ PrepareAlsaPcmSockets(MultiSocketMonitor &m, snd_pcm_t *pcm,
 	return std::chrono::steady_clock::duration(-1);
 }
 
+void
+AlsaNonBlockPcm::DispatchSockets(MultiSocketMonitor &m,
+				 snd_pcm_t *pcm)
+{
+	int count = snd_pcm_poll_descriptors_count(pcm);
+	if (count <= 0)
+		return;
+
+	const auto pfds = pfd_buffer.Get(count), end = pfds + count;
+
+	auto *i = pfds;
+	m.ForEachReturnedEvent([&i, end](SocketDescriptor s, unsigned events){
+			if (i >= end)
+				return;
+
+			i->fd = s.Get();
+			i->events = i->revents = events;
+			++i;
+		});
+
+	unsigned short dummy;
+	int err = snd_pcm_poll_descriptors_revents(pcm, pfds, i - pfds, &dummy);
+	if (err < 0)
+		throw FormatRuntimeError("snd_pcm_poll_descriptors_revents() failed: %s",
+					 snd_strerror(-err));
+}
+
 std::chrono::steady_clock::duration
-PrepareAlsaMixerSockets(MultiSocketMonitor &m, snd_mixer_t *mixer,
-			ReusableArray<pollfd> &pfd_buffer) noexcept
+AlsaNonBlockMixer::PrepareSockets(MultiSocketMonitor &m, snd_mixer_t *mixer) noexcept
 {
 	int count = snd_mixer_poll_descriptors_count(mixer);
 	if (count <= 0) {
@@ -68,4 +92,28 @@ PrepareAlsaMixerSockets(MultiSocketMonitor &m, snd_mixer_t *mixer,
 
 	m.ReplaceSocketList(pfds, count);
 	return std::chrono::steady_clock::duration(-1);
+}
+
+void
+AlsaNonBlockMixer::DispatchSockets(MultiSocketMonitor &m,
+				   snd_mixer_t *mixer) noexcept
+{
+	int count = snd_mixer_poll_descriptors_count(mixer);
+	if (count <= 0)
+		return;
+
+	const auto pfds = pfd_buffer.Get(count), end = pfds + count;
+
+	auto *i = pfds;
+	m.ForEachReturnedEvent([&i, end](SocketDescriptor s, unsigned events){
+			if (i >= end)
+				return;
+
+			i->fd = s.Get();
+			i->events = i->revents = events;
+			++i;
+		});
+
+	unsigned short dummy;
+	snd_mixer_poll_descriptors_revents(mixer, pfds, i - pfds, &dummy);
 }

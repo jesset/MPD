@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "QobuzInputPlugin.hxx"
 #include "QobuzClient.hxx"
 #include "QobuzTrackRequest.hxx"
@@ -209,8 +208,14 @@ ScanQobuzTags(const char *uri, RemoteTagHandler &handler)
 						 handler);
 }
 
+static constexpr const char *qobuz_prefixes[] = {
+	"qobuz://",
+	nullptr
+};
+
 const InputPlugin qobuz_input_plugin = {
 	"qobuz",
+	qobuz_prefixes,
 	InitQobuzInput,
 	FinishQobuzInput,
 	OpenQobuzInput,

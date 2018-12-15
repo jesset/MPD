@@ -21,9 +21,15 @@
 #define MPD_STRING_FILTER_HXX
 
 #include "lib/icu/Compare.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
+#include "config.h"
+
+#ifdef HAVE_PCRE
+#include "lib/pcre/UniqueRegex.hxx"
+#endif
 
 #include <string>
+#include <memory>
 
 class StringFilter {
 	std::string value;
@@ -33,17 +39,44 @@ class StringFilter {
 	 */
 	IcuCompare fold_case;
 
+#ifdef HAVE_PCRE
+	std::shared_ptr<UniqueRegex> regex;
+#endif
+
+	/**
+	 * Search for substrings instead of matching the whole string?
+	 */
+	bool substring;
+
+	bool negated;
+
 public:
 	template<typename V>
-	StringFilter(V &&_value, bool _fold_case)
+	StringFilter(V &&_value, bool _fold_case, bool _substring, bool _negated)
 		:value(std::forward<V>(_value)),
 		 fold_case(_fold_case
 			   ? IcuCompare(value.c_str())
-			   : IcuCompare()) {}
+			   : IcuCompare()),
+		 substring(_substring), negated(_negated) {}
 
 	bool empty() const noexcept {
 		return value.empty();
 	}
+
+	bool IsRegex() const noexcept {
+#ifdef HAVE_PCRE
+		return !!regex;
+#else
+		return false;
+#endif
+	}
+
+#ifdef HAVE_PCRE
+	template<typename R>
+	void SetRegex(R &&_regex) noexcept {
+		regex = std::forward<R>(_regex);
+	}
+#endif
 
 	const auto &GetValue() const noexcept {
 		return value;
@@ -53,8 +86,28 @@ public:
 		return fold_case;
 	}
 
+	bool IsNegated() const noexcept {
+		return negated;
+	}
+
+	void ToggleNegated() noexcept {
+		negated = !negated;
+	}
+
+	const char *GetOperator() const noexcept {
+		return IsRegex()
+			? (negated ? "!~" : "=~")
+			: (substring
+			   ? (negated ? "!contains" : "contains")
+			   : (negated ? "!=" : "=="));
+	}
+
 	gcc_pure
 	bool Match(const char *s) const noexcept;
+
+private:
+	gcc_pure
+	bool MatchWithoutNegation(const char *s) const noexcept;
 };
 
 #endif

@@ -20,7 +20,7 @@
 #include "config.h"
 #include <string.h>
 #include <unistd.h>
-#include <openssl/md5.h>
+#include "lib/gcrypt/MD5.hxx"
 #include "util/ASCII.hxx"
 #include "sacd_metabase.h"
 
@@ -29,11 +29,14 @@ sacd_metabase_t::sacd_metabase_t(sacd_disc_t* sacd_disc, const char* tags_path, 
 	metabase_loaded = false;
 	uint8_t md5_data[MASTER_TOC_LEN * SACD_LSN_SIZE];
 	if (sacd_disc->read_blocks_raw(START_OF_MASTER_TOC, MASTER_TOC_LEN, md5_data)) {
-		uint8_t md5_hash[MD5_DIGEST_LENGTH];
-		MD5(md5_data, sizeof(md5_data), md5_hash);
-		for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
+		ConstBuffer<void> md5_hash_buffer;
+		md5_hash_buffer.data = md5_data;
+		md5_hash_buffer.size = sizeof(md5_data);
+		std::array<uint8_t, 16> md5_hash_array;
+		md5_hash_array = MD5(md5_hash_buffer);
+		for (auto md5_hash_value : md5_hash_array) {
 			char hex_byte[3];
-			sprintf(hex_byte, "%02X", md5_hash[i]);
+			sprintf(hex_byte, "%02X", md5_hash_value);
 			store_id += hex_byte;
 		}
 		if (tags_path) {

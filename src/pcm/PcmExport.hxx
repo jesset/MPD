@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,9 +20,9 @@
 #ifndef PCM_EXPORT_HXX
 #define PCM_EXPORT_HXX
 
-#include "check.h"
 #include "SampleFormat.hxx"
 #include "PcmBuffer.hxx"
+#include "config.h"
 
 template<typename T> struct ConstBuffer;
 struct AudioFormat;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,12 +20,12 @@
 #ifndef MPD_ICU_CASE_FOLD_HXX
 #define MPD_ICU_CASE_FOLD_HXX
 
-#include "check.h"
+#include "config.h"
 
 #if defined(HAVE_ICU) || defined(_WIN32)
 #define HAVE_ICU_CASE_FOLD
 
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 template<typename T> class AllocatedString;
 

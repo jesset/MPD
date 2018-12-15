@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -39,7 +39,6 @@
  * one of them takes effect.
  */
 
-#include "config.h"
 #include "config/Domain.hxx"
 #include "config/Block.hxx"
 #include "AudioFormat.hxx"

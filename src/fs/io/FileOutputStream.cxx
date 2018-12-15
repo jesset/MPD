@@ -27,7 +27,6 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "config.h"
 #include "FileOutputStream.hxx"
 #include "system/Error.hxx"
 #include "util/StringFormat.hxx"
@@ -123,7 +122,7 @@ FileOutputStream::Commit()
 }
 
 void
-FileOutputStream::Cancel()
+FileOutputStream::Cancel() noexcept
 {
 	assert(IsDefined());
 
@@ -138,7 +137,7 @@ FileOutputStream::Cancel()
 #include <unistd.h>
 #include <errno.h>
 
-#ifdef HAVE_LINKAT
+#ifdef HAVE_O_TMPFILE
 #ifndef O_TMPFILE
 /* supported since Linux 3.11 */
 #define __O_TMPFILE 020000000
@@ -159,12 +158,12 @@ OpenTempFile(FileDescriptor &fd, Path path)
 	return fd.Open(directory.c_str(), O_TMPFILE|O_WRONLY, 0666);
 }
 
-#endif /* HAVE_LINKAT */
+#endif /* HAVE_O_TMPFILE */
 
 inline void
 FileOutputStream::OpenCreate(bool visible)
 {
-#ifdef HAVE_LINKAT
+#ifdef HAVE_O_TMPFILE
 	/* try Linux's O_TMPFILE first */
 	is_tmpfile = !visible && OpenTempFile(fd, GetPath());
 	if (!is_tmpfile) {
@@ -175,7 +174,7 @@ FileOutputStream::OpenCreate(bool visible)
 			     0666))
 			throw FormatErrno("Failed to create %s",
 					  GetPath().c_str());
-#ifdef HAVE_LINKAT
+#ifdef HAVE_O_TMPFILE
 	}
 #else
 	(void)visible;
@@ -218,7 +217,7 @@ FileOutputStream::Commit()
 {
 	assert(IsDefined());
 
-#ifdef HAVE_LINKAT
+#ifdef HAVE_O_TMPFILE
 	if (is_tmpfile) {
 		unlink(GetPath().c_str());
 
@@ -243,7 +242,7 @@ FileOutputStream::Commit()
 }
 
 void
-FileOutputStream::Cancel()
+FileOutputStream::Cancel() noexcept
 {
 	assert(IsDefined());
 
@@ -251,7 +250,7 @@ FileOutputStream::Cancel()
 
 	switch (mode) {
 	case Mode::CREATE:
-#ifdef HAVE_LINKAT
+#ifdef HAVE_O_TMPFILE
 		if (!is_tmpfile)
 #endif
 			unlink(GetPath().c_str());

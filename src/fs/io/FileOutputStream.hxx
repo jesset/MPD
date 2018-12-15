@@ -30,10 +30,9 @@
 #ifndef FILE_OUTPUT_STREAM_HXX
 #define FILE_OUTPUT_STREAM_HXX
 
-#include "check.h"
 #include "OutputStream.hxx"
 #include "fs/AllocatedPath.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #ifndef _WIN32
 #include "system/FileDescriptor.hxx"
@@ -44,6 +43,15 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#endif
+
+#if defined(__linux__) && !defined(ANDROID)
+/* we don't use O_TMPFILE on Android because Android's braindead
+   SELinux policy disallows hardlinks
+   (https://android.googlesource.com/platform/external/sepolicy/+/85ce2c7),
+   even hardlinks from /proc/self/fd/N, which however is required to
+   use O_TMPFILE */
+#define HAVE_O_TMPFILE
 #endif
 
 class Path;
@@ -57,7 +65,7 @@ class FileOutputStream final : public OutputStream {
 	FileDescriptor fd = FileDescriptor::Undefined();
 #endif
 
-#ifdef HAVE_LINKAT
+#ifdef HAVE_O_TMPFILE
 	/**
 	 * Was O_TMPFILE used?  If yes, then linkat() must be used to
 	 * create a link to this file.
@@ -100,13 +108,16 @@ private:
 public:
 	explicit FileOutputStream(Path _path, Mode _mode=Mode::CREATE);
 
-	~FileOutputStream() {
+	~FileOutputStream() noexcept {
 		if (IsDefined())
 			Cancel();
 	}
 
+	FileOutputStream(const FileOutputStream &) = delete;
+	FileOutputStream &operator=(const FileOutputStream &) = delete;
+
 public:
-	Path GetPath() const {
+	Path GetPath() const noexcept {
 		return path;
 	}
 
@@ -117,13 +128,13 @@ public:
 	void Write(const void *data, size_t size) override;
 
 	void Commit();
-	void Cancel();
+	void Cancel() noexcept;
 
 private:
 	void OpenCreate(bool visible);
 	void OpenAppend(bool create);
 
-	bool Close() {
+	bool Close() noexcept {
 		assert(IsDefined());
 
 #ifdef _WIN32
@@ -136,13 +147,13 @@ private:
 	}
 
 #ifdef _WIN32
-	bool SeekEOF() {
+	bool SeekEOF() noexcept {
 		return SetFilePointer(handle, 0, nullptr,
 				      FILE_END) != 0xffffffff;
 	}
 #endif
 
-	bool IsDefined() const {
+	bool IsDefined() const noexcept {
 #ifdef _WIN32
 		return handle != INVALID_HANDLE_VALUE;
 #else

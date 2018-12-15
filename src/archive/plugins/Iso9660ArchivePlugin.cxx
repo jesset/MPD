@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -21,7 +21,6 @@
   * iso archive handling (requires cdio, and iso9660)
   */
 
-#include "config.h"
 #include "Iso9660ArchivePlugin.hxx"
 #include "../ArchivePlugin.hxx"
 #include "../ArchiveFile.hxx"

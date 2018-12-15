@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * Copyright (C) 2010-2011 Philipp 'ph3-der-loewe' Schafft
  * Copyright (C) 2010-2011 Hans-Kristian 'maister' Arntzen
  * Copyright (C) 2014-2015 François 'mmu_man' Revol
@@ -20,10 +20,9 @@
  */
 
 
-#include "config.h"
 #include "mixer/MixerInternal.hxx"
 #include "output/plugins/HaikuOutputPlugin.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include "util/RuntimeError.hxx"
 

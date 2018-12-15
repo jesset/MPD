@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
 
 class PcmConvert;
 struct MusicChunk;
-struct DecoderControl;
+class DecoderControl;
 struct Tag;
 
 /**
@@ -49,7 +49,7 @@ public:
 	/**
 	 * The time stamp of the next data chunk, in seconds.
 	 */
-	double timestamp = 0;
+	FloatDuration timestamp = FloatDuration::zero();
 
 	/**
 	 * The time stamp of the next data chunk, in PCM frames.
@@ -148,7 +148,7 @@ public:
 	void SeekError() override;
 	InputStreamPtr OpenUri(const char *uri) override;
 	size_t Read(InputStream &is, void *buffer, size_t length) override;
-	void SubmitTimestamp(double t) override;
+	void SubmitTimestamp(FloatDuration t) override;
 	DecoderCommand SubmitData(InputStream *is,
 				  const void *data, size_t length,
 				  uint16_t kbit_rate) override;

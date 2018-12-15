@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Directory.hxx"
 #include "SongSort.hxx"
 #include "Song.hxx"
@@ -27,6 +26,7 @@
 #include "db/Uri.hxx"
 #include "db/DatabaseLock.hxx"
 #include "db/Interface.hxx"
+#include "db/Selection.hxx"
 #include "song/Filter.hxx"
 #include "lib/icu/Collate.hxx"
 #include "fs/Traits.hxx"
@@ -227,7 +227,7 @@ Directory::Walk(bool recursive, const SongFilter *filter,
 		   call will lock it again */
 		const ScopeDatabaseUnlock unlock;
 		WalkMount(GetPath(), *mounted_database,
-			  "", recursive, filter,
+			  "", DatabaseSelection("", recursive, filter),
 			  visit_directory, visit_song,
 			  visit_playlist);
 		return;

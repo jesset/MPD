@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,7 +26,7 @@
 #include "../InputStream.hxx"
 #include "../InputPlugin.hxx"
 #include "util/TruncateString.hxx"
-#include "util/ASCII.hxx"
+#include "util/StringCompare.hxx"
 #include "util/RuntimeError.hxx"
 #include "util/Domain.hxx"
 #include "system/ByteOrder.hxx"
@@ -104,6 +104,7 @@ class CdioParanoiaInputStream final : public InputStream {
 static constexpr Domain cdio_domain("cdio");
 
 static bool default_reverse_endian;
+static unsigned speed = 0;
 
 static void
 input_cdio_init(EventLoop &, const ConfigBlock &block)
@@ -118,55 +119,53 @@ input_cdio_init(EventLoop &, const ConfigBlock &block)
 			throw FormatRuntimeError("Unrecognized 'default_byte_order' setting: %s",
 						 value);
 	}
+	speed = block.GetBlockValue("speed",0u);
 }
 
-struct cdio_uri {
+struct CdioUri {
 	char device[64];
 	int track;
 };
 
-static bool
-parse_cdio_uri(struct cdio_uri *dest, const char *src)
+static CdioUri
+parse_cdio_uri(const char *src)
 {
-	if (!StringStartsWithCaseASCII(src, "cdda://"))
-		return false;
-
-	src += 7;
+	CdioUri dest;
 
 	if (*src == 0) {
 		/* play the whole CD in the default drive */
-		dest->device[0] = 0;
-		dest->track = -1;
-		return true;
+		dest.device[0] = 0;
+		dest.track = -1;
+		return dest;
 	}
 
 	const char *slash = strrchr(src, '/');
 	if (slash == nullptr) {
 		/* play the whole CD in the specified drive */
-		CopyTruncateString(dest->device, src, sizeof(dest->device));
-		dest->track = -1;
-		return true;
+		CopyTruncateString(dest.device, src, sizeof(dest.device));
+		dest.track = -1;
+		return dest;
 	}
 
 	size_t device_length = slash - src;
-	if (device_length >= sizeof(dest->device))
-		device_length = sizeof(dest->device) - 1;
+	if (device_length >= sizeof(dest.device))
+		device_length = sizeof(dest.device) - 1;
 
-	memcpy(dest->device, src, device_length);
-	dest->device[device_length] = 0;
+	memcpy(dest.device, src, device_length);
+	dest.device[device_length] = 0;
 
 	const char *track = slash + 1;
 
 	char *endptr;
-	dest->track = strtoul(track, &endptr, 10);
+	dest.track = strtoul(track, &endptr, 10);
 	if (*endptr != 0)
 		throw std::runtime_error("Malformed track number");
 
 	if (endptr == track)
 		/* play the whole CD */
-		dest->track = -1;
+		dest.track = -1;
 
-	return true;
+	return dest;
 }
 
 static AllocatedPath
@@ -186,9 +185,10 @@ static InputStreamPtr
 input_cdio_open(const char *uri,
 		Mutex &mutex)
 {
-	struct cdio_uri parsed_uri;
-	if (!parse_cdio_uri(&parsed_uri, uri))
-		return nullptr;
+	uri = StringAfterPrefixIgnoreCase(uri, "cdda://");
+	assert(uri != nullptr);
+
+	const auto parsed_uri = parse_cdio_uri(uri);
 
 	/* get list of CD's supporting CD-DA */
 	const AllocatedPath device = parsed_uri.device[0] != 0
@@ -209,6 +209,10 @@ input_cdio_open(const char *uri,
 	}
 
 	cdda_verbose_set(drv, CDDA_MESSAGE_FORGETIT, CDDA_MESSAGE_FORGETIT);
+	if (speed > 0) {
+		FormatDebug(cdio_domain,"Attempting to set CD speed to %dx",speed);
+		cdda_speed_set(drv,speed);
+	}
 
 	if (0 != cdio_cddap_open(drv)) {
 		cdio_cddap_close_no_free_cdio(drv);
@@ -351,8 +355,14 @@ CdioParanoiaInputStream::IsEOF() noexcept
 	return lsn_from + lsn_relofs > lsn_to;
 }
 
+static constexpr const char *cdio_paranoia_prefixes[] = {
+	"cdda://",
+	nullptr
+};
+
 const InputPlugin input_plugin_cdio_paranoia = {
 	"cdio_paranoia",
+	cdio_paranoia_prefixes,
 	input_cdio_init,
 	nullptr,
 	input_cdio_open,

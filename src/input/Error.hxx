@@ -20,8 +20,7 @@
 #ifndef INPUT_ERROR_HXX
 #define INPUT_ERROR_HXX
 
-#include "check.h"
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #include <exception>
 
@@ -32,6 +31,6 @@
  */
 gcc_pure
 bool
-IsFileNotFound(std::exception_ptr e);
+IsFileNotFound(std::exception_ptr e) noexcept;
 
 #endif

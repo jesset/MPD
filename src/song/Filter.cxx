@@ -91,8 +91,10 @@ locate_parse_type(const char *str) noexcept
 
 SongFilter::SongFilter(TagType tag, const char *value, bool fold_case)
 {
-	and_filter.AddItem(std::make_unique<TagSongFilter>(tag, value,
-							   fold_case, false));
+	/* for compatibility with MPD 0.20 and older, "fold_case" also
+	   switches on "substring" */
+	and_filter.AddItem(std::make_unique<TagSongFilter>(tag,
+							   StringFilter(value, fold_case, fold_case, false)));
 }
 
 SongFilter::~SongFilter()
@@ -173,13 +175,76 @@ ExpectQuoted(const char *&s)
 	if (!IsQuote(quote))
 		throw std::runtime_error("Quoted string expected");
 
-	const char *begin = s;
-	const char *end = strchr(s, quote);
-	if (end == nullptr)
-		throw std::runtime_error("Closing quote not found");
+	char buffer[4096];
+	size_t length = 0;
 
-	s = StripLeft(end + 1);
-	return {begin, end};
+	while (*s != quote) {
+		if (*s == '\\')
+			/* backslash escapes the following character */
+			++s;
+
+		if (*s == 0)
+			throw std::runtime_error("Closing quote not found");
+
+		buffer[length++] = *s++;
+
+		if (length >= sizeof(buffer))
+			throw std::runtime_error("Quoted value is too long");
+	}
+
+	s = StripLeft(s + 1);
+
+	return {buffer, length};
+}
+
+/**
+ * Parse a string operator and its second operand and convert it to a
+ * #StringFilter.
+ *
+ * Throws on error.
+ */
+static StringFilter
+ParseStringFilter(const char *&s, bool fold_case)
+{
+	if (auto after_contains = StringAfterPrefixIgnoreCase(s, "contains ")) {
+		s = StripLeft(after_contains);
+		auto value = ExpectQuoted(s);
+		return StringFilter(std::move(value),
+				    fold_case, true, false);
+	}
+
+	if (auto after_not_contains = StringAfterPrefixIgnoreCase(s, "!contains ")) {
+		s = StripLeft(after_not_contains);
+		auto value = ExpectQuoted(s);
+		return StringFilter(std::move(value),
+				    fold_case, true, true);
+	}
+
+	bool negated = false;
+
+#ifdef HAVE_PCRE
+	if ((s[0] == '!' || s[0] == '=') && s[1] == '~') {
+		negated = s[0] == '!';
+		s = StripLeft(s + 2);
+		auto value = ExpectQuoted(s);
+		StringFilter f(std::move(value), fold_case, false, negated);
+		f.SetRegex(std::make_shared<UniqueRegex>(f.GetValue().c_str(),
+							 false, false,
+							 fold_case));
+		return f;
+	}
+#endif
+
+	if (s[0] == '!' && s[1] == '=')
+		negated = true;
+	else if (s[0] != '=' || s[1] != '=')
+		throw std::runtime_error("'==' or '!=' expected");
+
+	s = StripLeft(s + 2);
+	auto value = ExpectQuoted(s);
+
+	return StringFilter(std::move(value),
+			    fold_case, false, negated);
 }
 
 ISongFilterPtr
@@ -264,14 +329,7 @@ SongFilter::ParseExpression(const char *&s, bool fold_case)
 
 		return std::make_unique<AudioFormatSongFilter>(value);
 	} else {
-		bool negated = false;
-		if (s[0] == '!' && s[1] == '=')
-			negated = true;
-		else if (s[0] != '=' || s[1] != '=')
-			throw std::runtime_error("'==' or '!=' expected");
-
-		s = StripLeft(s + 2);
-		auto value = ExpectQuoted(s);
+		auto string_filter = ParseStringFilter(s, fold_case);
 		if (*s != ')')
 			throw std::runtime_error("')' expected");
 
@@ -281,13 +339,10 @@ SongFilter::ParseExpression(const char *&s, bool fold_case)
 			type = TAG_NUM_OF_ITEM_TYPES;
 
 		if (type == LOCATE_TAG_FILE_TYPE)
-			return std::make_unique<UriSongFilter>(std::move(value),
-							       fold_case,
-							       negated);
+			return std::make_unique<UriSongFilter>(std::move(string_filter));
 
 		return std::make_unique<TagSongFilter>(TagType(type),
-						       std::move(value),
-						       fold_case, negated);
+						       std::move(string_filter));
 	}
 }
 
@@ -312,19 +367,25 @@ SongFilter::Parse(const char *tag_string, const char *value, bool fold_case)
 		break;
 
 	case LOCATE_TAG_FILE_TYPE:
-		and_filter.AddItem(std::make_unique<UriSongFilter>(value,
-								   fold_case,
-								   false));
+		/* for compatibility with MPD 0.20 and older,
+		   "fold_case" also switches on "substring" */
+		and_filter.AddItem(std::make_unique<UriSongFilter>(StringFilter(value,
+										fold_case,
+										fold_case,
+										false)));
 		break;
 
 	default:
 		if (tag == LOCATE_TAG_ANY_TYPE)
 			tag = TAG_NUM_OF_ITEM_TYPES;
 
+		/* for compatibility with MPD 0.20 and older,
+		   "fold_case" also switches on "substring" */
 		and_filter.AddItem(std::make_unique<TagSongFilter>(TagType(tag),
-								   value,
-								   fold_case,
-								   false));
+								   StringFilter(value,
+										fold_case,
+										fold_case,
+										false)));
 		break;
 	}
 }

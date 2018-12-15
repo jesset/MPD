@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "MmsInputPlugin.hxx"
 #include "input/ThreadInputStream.hxx"
 #include "input/InputPlugin.hxx"
@@ -72,12 +71,6 @@ static InputStreamPtr
 input_mms_open(const char *url,
 	       Mutex &mutex)
 {
-	if (!StringStartsWithCaseASCII(url, "mms://") &&
-	    !StringStartsWithCaseASCII(url, "mmsh://") &&
-	    !StringStartsWithCaseASCII(url, "mmst://") &&
-	    !StringStartsWithCaseASCII(url, "mmsu://"))
-		return nullptr;
-
 	auto m = std::make_unique<MmsInputStream>(url, mutex);
 	m->Start();
 	return m;
@@ -103,8 +96,17 @@ MmsInputStream::ThreadRead(void *ptr, size_t read_size)
 	return (size_t)nbytes;
 }
 
+static constexpr const char *mms_prefixes[] = {
+	"mms://",
+	"mmsh://",
+	"mmst://",
+	"mmsu://",
+	nullptr
+};
+
 const InputPlugin input_plugin_mms = {
 	"mms",
+	mms_prefixes,
 	nullptr,
 	nullptr,
 	input_mms_open,

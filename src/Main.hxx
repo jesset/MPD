@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,7 +25,10 @@ class Context;
 struct Instance;
 
 #ifdef ANDROID
+#include "android/LogListener.hxx"
+
 extern Context *context;
+extern LogListener *logListener;
 #endif
 
 extern Instance *instance;

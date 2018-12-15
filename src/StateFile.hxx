@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -23,7 +23,8 @@
 #include "StateFileConfig.hxx"
 #include "event/TimerEvent.hxx"
 #include "fs/AllocatedPath.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
+#include "config.h"
 
 #include <string>
 #include <chrono>

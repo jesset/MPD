@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -37,15 +37,13 @@ class SocketAddress;
  * access. The caller is responsible to apply proper permissions
  * at a later point.
  *
- * Throws #std::system_error on error.
+ * Throws on error.
  *
  * @param domain the socket domain, e.g. PF_INET6
  * @param type the socket type, e.g. SOCK_STREAM
  * @param protocol the protocol, usually 0 to let the kernel choose
  * @param address the address to listen on
  * @param backlog the backlog parameter for the listen() system call
- * @param error location to store the error occurring, or NULL to
- * ignore errors
  * @return the socket file descriptor
  */
 UniqueSocketDescriptor

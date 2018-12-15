@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2017 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2013-2018 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,6 +37,18 @@ StringEndsWith(const wchar_t *haystack, const wchar_t *needle) noexcept
 
 	return haystack_length >= needle_length &&
 		StringIsEqual(haystack + haystack_length - needle_length, needle);
+}
+
+bool
+StringEndsWithIgnoreCase(const wchar_t *haystack,
+			 const wchar_t *needle) noexcept
+{
+	const size_t haystack_length = StringLength(haystack);
+	const size_t needle_length = StringLength(needle);
+
+	return haystack_length >= needle_length &&
+		StringIsEqualIgnoreCase(haystack + haystack_length - needle_length,
+					needle);
 }
 
 const wchar_t *

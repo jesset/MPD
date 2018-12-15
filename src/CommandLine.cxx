@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,10 +19,11 @@
 
 #include "config.h"
 #include "CommandLine.hxx"
+#include "GitVersion.hxx"
 #include "ls.hxx"
 #include "LogInit.hxx"
 #include "Log.hxx"
-#include "config/Global.hxx"
+#include "config/File.hxx"
 #include "decoder/DecoderList.hxx"
 #include "decoder/DecoderPlugin.hxx"
 #include "output/Registry.hxx"
@@ -107,20 +108,17 @@ static constexpr Domain cmdline_domain("cmdline");
 gcc_noreturn
 static void version(void)
 {
-	printf("Music Player Daemon " VERSION
-#ifdef GIT_COMMIT
-	       " (" GIT_COMMIT ")"
-#endif
+	printf("Music Player Daemon " VERSION " (%s)\n"
 	       "\n"
-	       "\n"
-	       "Copyright (C) 2003-2007 Warren Dukes <warren.dukes@gmail.com>\n"
-	       "Copyright 2008-2017 Max Kellermann <max.kellermann@gmail.com>\n"
+	       "Copyright 2003-2007 Warren Dukes <warren.dukes@gmail.com>\n"
+	       "Copyright 2008-2018 Max Kellermann <max.kellermann@gmail.com>\n"
 	       "This is free software; see the source for copying conditions.  There is NO\n"
 	       "warranty; not even MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"
 
 #ifdef ENABLE_DATABASE
 	       "\n"
-	       "Database plugins:\n");
+	       "Database plugins:\n",
+	       GIT_VERSION);
 
 	for (auto i = database_plugins; *i != nullptr; ++i)
 		printf(" %s", (*i)->name);
@@ -292,7 +290,12 @@ static void help(void)
 
 class ConfigLoader
 {
+	ConfigData &config;
+
 public:
+	explicit ConfigLoader(ConfigData &_config) noexcept
+		:config(_config) {}
+
 	bool TryFile(const Path path);
 	bool TryFile(const AllocatedPath &base_path, Path path);
 };
@@ -300,7 +303,7 @@ public:
 bool ConfigLoader::TryFile(Path path)
 {
 	if (FileExists(path)) {
-		ReadConfigFile(path);
+		ReadConfigFile(config, path);
 		return true;
 	}
 	return false;
@@ -315,7 +318,8 @@ bool ConfigLoader::TryFile(const AllocatedPath &base_path, Path path)
 }
 
 void
-ParseCommandLine(int argc, char **argv, struct options &options)
+ParseCommandLine(int argc, char **argv, struct options &options,
+		 ConfigData &config)
 {
 	bool use_config_file = true;
 
@@ -383,16 +387,16 @@ ParseCommandLine(int argc, char **argv, struct options &options)
 		if (result <= 0)
 			throw MakeLastError("MultiByteToWideChar() failed");
 
-		ReadConfigFile(Path::FromFS(buffer));
+		ReadConfigFile(config, Path::FromFS(buffer));
 #else
-		ReadConfigFile(Path::FromFS(config_file));
+		ReadConfigFile(config, Path::FromFS(config_file));
 #endif
 		return;
 	}
 
 	/* use default configuration file path */
 
-	ConfigLoader loader;
+	ConfigLoader loader(config);
 
 	bool found =
 #ifdef _WIN32

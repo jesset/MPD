@@ -20,7 +20,7 @@
 #include "config.h"
 #include <string.h>
 #include <unistd.h>
-#include <openssl/md5.h>
+#include "lib/gcrypt/MD5.hxx"
 #include "util/ASCII.hxx"
 #include "dvda_metabase.h"
 
@@ -34,11 +34,14 @@ dvda_metabase_t::dvda_metabase_t(dvda_disc_t* dvda_disc, const char* tags_path, 
 		uint8_t* md5_data = new uint8_t[md5_size];
 		if (md5_data) {
 			if (md5_file->read(md5_data, md5_size) == md5_size) {
-				uint8_t md5_hash[MD5_DIGEST_LENGTH];
-				MD5(md5_data, md5_size, md5_hash);
-				for (int i = 0; i < MD5_DIGEST_LENGTH; i++) {
+				ConstBuffer<void> md5_hash_buffer;
+				md5_hash_buffer.data = md5_data;
+				md5_hash_buffer.size = md5_size;
+				std::array<uint8_t, 16> md5_hash_array;
+				md5_hash_array = MD5(md5_hash_buffer);
+				for (auto md5_hash_value : md5_hash_array) {
 					char hex_byte[3];
-					sprintf(hex_byte, "%02X", md5_hash[i]);
+					sprintf(hex_byte, "%02X", md5_hash_value);
 					store_id += hex_byte;
 				}
 				if (tags_path) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 #ifndef MPD_DB_SIMPLE_PREFIXED_LIGHT_SONG_HXX
 #define MPD_DB_SIMPLE_PREFIXED_LIGHT_SONG_HXX
 
-#include "check.h"
 #include "song/LightSong.hxx"
 #include "fs/Traits.hxx"
 

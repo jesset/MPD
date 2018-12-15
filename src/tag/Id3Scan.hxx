@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,10 +20,6 @@
 #ifndef MPD_TAG_ID3_SCAN_HXX
 #define MPD_TAG_ID3_SCAN_HXX
 
-#include "check.h"
-
-#include <memory>
-
 class InputStream;
 class TagHandler;
 struct Tag;
@@ -32,14 +28,14 @@ struct id3_tag;
 bool
 tag_id3_scan(InputStream &is, TagHandler &handler) noexcept;
 
-std::unique_ptr<Tag>
-tag_id3_import(id3_tag *);
+Tag
+tag_id3_import(const struct id3_tag *) noexcept;
 
 /**
  * Import all tags from the provided id3_tag *tag
  *
  */
 void
-scan_id3_tag(id3_tag *tag, TagHandler &handler) noexcept;
+scan_id3_tag(const struct id3_tag *tag, TagHandler &handler) noexcept;
 
 #endif

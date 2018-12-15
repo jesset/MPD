@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "SmbclientInputPlugin.hxx"
 #include "lib/smbclient/Init.hxx"
 #include "lib/smbclient/Mutex.hxx"
@@ -87,9 +86,6 @@ static InputStreamPtr
 input_smbclient_open(const char *uri,
 		     Mutex &mutex)
 {
-	if (!StringStartsWithCaseASCII(uri, "smb://"))
-		return nullptr;
-
 	const std::lock_guard<Mutex> protect(smbclient_mutex);
 
 	SMBCCTX *ctx = smbc_new_context();
@@ -158,8 +154,14 @@ SmbclientInputStream::Seek(offset_type new_offset)
 	offset = result;
 }
 
+static constexpr const char *smbclient_prefixes[] = {
+	"smb://",
+	nullptr
+};
+
 const InputPlugin input_plugin_smbclient = {
 	"smbclient",
+	smbclient_prefixes,
 	input_smbclient_init,
 	nullptr,
 	input_smbclient_open,

@@ -17,23 +17,37 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "StringFilter.hxx"
 #include "util/StringCompare.hxx"
 
 #include <assert.h>
 
-bool
-StringFilter::Match(const char *s) const noexcept
+inline bool
+StringFilter::MatchWithoutNegation(const char *s) const noexcept
 {
 #if !CLANG_CHECK_VERSION(3,6)
 	/* disabled on clang due to -Wtautological-pointer-compare */
 	assert(s != nullptr);
 #endif
 
+#ifdef HAVE_PCRE
+	if (regex)
+		return regex->Match(s);
+#endif
+
 	if (fold_case) {
-		return fold_case.IsIn(s);
+		return substring
+			? fold_case.IsIn(s)
+			: fold_case == s;
 	} else {
-		return StringIsEqual(s, value.c_str());
+		return substring
+			? StringFind(s, value.c_str()) != nullptr
+			: value == s;
 	}
+}
+
+bool
+StringFilter::Match(const char *s) const noexcept
+{
+	return MatchWithoutNegation(s) != negated;
 }

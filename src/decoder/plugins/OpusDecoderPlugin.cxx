@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h" /* must be first for large file support */
 #include "OpusDecoderPlugin.h"
 #include "OggDecoder.hxx"
 #include "OpusDomain.hxx"
@@ -243,7 +242,7 @@ MPDOpusDecoder::HandleAudio(const ogg_packet &packet)
 			throw cmd;
 
 		if (packet.granulepos > 0)
-			client.SubmitTimestamp(double(packet.granulepos)
+			client.SubmitTimestamp(FloatDuration(packet.granulepos)
 					       / opus_sample_rate);
 	}
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,7 @@
 #ifndef MPD_CONFIG_OPTION_HXX
 #define MPD_CONFIG_OPTION_HXX
 
-#include "Compiler.h"
+#include "util/Compiler.h"
 
 #if defined(_WIN32) && CLANG_OR_GCC_VERSION(4,7)
 /* "INPUT" is declared by winuser.h */

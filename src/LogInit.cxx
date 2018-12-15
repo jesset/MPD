@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -30,6 +30,10 @@
 #include "util/RuntimeError.hxx"
 #include "system/Error.hxx"
 
+#ifdef ENABLE_SYSTEMD_DAEMON
+#include <systemd/sd-daemon.h>
+#endif
+
 #include <assert.h>
 #include <string.h>
 #include <fcntl.h>
@@ -41,6 +45,7 @@
 #define LOG_DATE_BUF_SIZE 16
 #define LOG_DATE_LEN (LOG_DATE_BUF_SIZE - 1)
 
+gcc_unused
 static constexpr Domain log_domain("log");
 
 #ifndef ANDROID
@@ -121,6 +126,7 @@ void
 log_init(const ConfigData &config, bool verbose, bool use_stdout)
 {
 #ifdef ANDROID
+	(void)config;
 	(void)verbose;
 	(void)use_stdout;
 #else
@@ -137,6 +143,16 @@ log_init(const ConfigData &config, bool verbose, bool use_stdout)
 		if (param == nullptr) {
 			/* no configuration: default to syslog (if
 			   available) */
+#ifdef ENABLE_SYSTEMD_DAEMON
+			if (sd_booted() &&
+			    getenv("NOTIFY_SOCKET") != nullptr) {
+				/* if MPD was started as a systemd
+				   service, default to journal (which
+				   is connected to fd=2) */
+				out_fd = STDOUT_FILENO;
+				return;
+			}
+#endif
 #ifndef HAVE_SYSLOG
 			throw std::runtime_error("config parameter 'log_file' not found");
 #endif

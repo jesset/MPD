@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "TidalInputPlugin.hxx"
 #include "TidalSessionManager.hxx"
 #include "TidalTrackRequest.hxx"
@@ -239,8 +238,14 @@ ScanTidalTags(const char *uri, RemoteTagHandler &handler)
 						 track_id, handler);
 }
 
+static constexpr const char *tidal_prefixes[] = {
+	"tidal://",
+	nullptr
+};
+
 const InputPlugin tidal_input_plugin = {
 	"tidal",
+	tidal_prefixes,
 	InitTidalInput,
 	FinishTidalInput,
 	OpenTidalInput,

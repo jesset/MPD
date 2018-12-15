@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,7 +24,6 @@
  * http://alsamodular.sourceforge.net/alsa_programming_howto.html
  */
 
-#include "config.h"
 #include "AlsaInputPlugin.hxx"
 #include "lib/alsa/NonBlock.hxx"
 #include "../InputPlugin.hxx"
@@ -34,7 +33,6 @@
 #include "util/Domain.hxx"
 #include "util/RuntimeError.hxx"
 #include "util/StringCompare.hxx"
-#include "util/ReusableArray.hxx"
 #include "util/ASCII.hxx"
 #include "Log.hxx"
 #include "event/MultiSocketMonitor.hxx"
@@ -69,7 +67,7 @@ class AlsaInputStream final
 	snd_pcm_t *const capture_handle;
 	const size_t frame_size;
 
-	ReusableArray<pollfd> pfd_buffer;
+	AlsaNonBlockPcm non_block;
 
 	DeferEvent defer_invalidate_sockets;
 
@@ -180,12 +178,14 @@ AlsaInputStream::PrepareSockets() noexcept
 		return std::chrono::steady_clock::duration(-1);
 	}
 
-	return PrepareAlsaPcmSockets(*this, capture_handle, pfd_buffer);
+	return non_block.PrepareSockets(*this, capture_handle);
 }
 
 void
 AlsaInputStream::DispatchSockets() noexcept
 {
+	non_block.DispatchSockets(*this, capture_handle);
+
 	const std::lock_guard<Mutex> protect(mutex);
 
 	auto w = PrepareWriteBuffer();
@@ -409,8 +409,14 @@ alsa_input_open(const char *uri, Mutex &mutex)
 				       mutex);
 }
 
+static constexpr const char *alsa_prefixes[] = {
+	"alsa://",
+	nullptr
+};
+
 const struct InputPlugin input_plugin_alsa = {
 	"alsa",
+	alsa_prefixes,
 	alsa_input_init,
 	nullptr,
 	alsa_input_open,

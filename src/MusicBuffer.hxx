@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -29,7 +29,7 @@
  */
 class MusicBuffer {
 	/** a mutex which protects #buffer */
-	Mutex mutex;
+	mutable Mutex mutex;
 
 	SliceBuffer<MusicChunk> buffer;
 
@@ -40,7 +40,7 @@ public:
 	 * @param num_chunks the number of #MusicChunk reserved in
 	 * this buffer
 	 */
-	explicit MusicBuffer(unsigned num_chunks) noexcept;
+	explicit MusicBuffer(unsigned num_chunks);
 
 #ifndef NDEBUG
 	/**
@@ -52,6 +52,11 @@ public:
 		return buffer.empty();
 	}
 #endif
+
+	bool IsFull() const noexcept {
+		const std::lock_guard<Mutex> protect(mutex);
+		return buffer.IsFull();
+	}
 
 	/**
 	 * Returns the total number of reserved chunks in this buffer.  This

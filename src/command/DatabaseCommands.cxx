@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "DatabaseCommands.hxx"
 #include "Request.hxx"
 #include "db/DatabaseQueue.hxx"
@@ -26,6 +25,7 @@
 #include "db/Count.hxx"
 #include "db/Selection.hxx"
 #include "CommandError.hxx"
+#include "protocol/RangeArg.hxx"
 #include "client/Client.hxx"
 #include "client/Response.hxx"
 #include "tag/ParseName.hxx"
@@ -73,14 +73,13 @@ ParseSortTag(const char *s)
 static CommandResult
 handle_match(Client &client, Request args, Response &r, bool fold_case)
 {
-	RangeArg window;
+	RangeArg window = RangeArg::All();
 	if (args.size >= 2 && StringIsEqual(args[args.size - 2], "window")) {
 		window = args.ParseRange(args.size - 1);
 
 		args.pop_back();
 		args.pop_back();
-	} else
-		window.SetAll();
+	}
 
 	TagType sort = TAG_NUM_OF_ITEM_TYPES;
 	bool descending = false;
@@ -107,12 +106,13 @@ handle_match(Client &client, Request args, Response &r, bool fold_case)
 	}
 	filter.Optimize();
 
-	const DatabaseSelection selection("", true, &filter);
+	DatabaseSelection selection("", true, &filter);
+	selection.window = window;
+	selection.sort = sort;
+	selection.descending = descending;
 
 	db_selection_print(r, client.GetPartition(),
-			   selection, true, false,
-			   sort, descending,
-			   window.start, window.end);
+			   selection, true, false);
 	return CommandResult::OK;
 }
 
@@ -266,7 +266,7 @@ handle_list(Client &client, Request args, Response &r)
 	}
 
 	std::unique_ptr<SongFilter> filter;
-	TagMask group_mask = TagMask::None();
+	TagType group = TAG_NUM_OF_ITEM_TYPES;
 
 	if (args.size == 1) {
 		/* for compatibility with < 0.12.0 */
@@ -281,17 +281,15 @@ handle_list(Client &client, Request args, Response &r)
 					    args.shift()));
 	}
 
-	while (args.size >= 2 &&
-	       StringIsEqual(args[args.size - 2], "group")) {
+	if  (args.size >= 2 &&
+	     StringIsEqual(args[args.size - 2], "group")) {
 		const char *s = args[args.size - 1];
-		TagType gt = tag_name_parse_i(s);
-		if (gt == TAG_NUM_OF_ITEM_TYPES) {
+		group = tag_name_parse_i(s);
+		if (group == TAG_NUM_OF_ITEM_TYPES) {
 			r.FormatError(ACK_ERROR_ARG,
 				      "Unknown tag type: %s", s);
 			return CommandResult::ERROR;
 		}
-
-		group_mask |= gt;
 
 		args.pop_back();
 		args.pop_back();
@@ -309,13 +307,13 @@ handle_list(Client &client, Request args, Response &r)
 		filter->Optimize();
 	}
 
-	if (group_mask.Test(tagType)) {
+	if (tagType < TAG_NUM_OF_ITEM_TYPES && tagType == group) {
 		r.Error(ACK_ERROR_ARG, "Conflicting group");
 		return CommandResult::ERROR;
 	}
 
 	PrintUniqueTags(r, client.GetPartition(),
-			tagType, group_mask, filter.get());
+			tagType, group, filter.get());
 	return CommandResult::OK;
 }
 

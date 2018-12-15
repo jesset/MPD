@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,12 +20,12 @@
 #ifndef MPD_SIMPLE_DATABASE_PLUGIN_HXX
 #define MPD_SIMPLE_DATABASE_PLUGIN_HXX
 
-#include "check.h"
 #include "db/Interface.hxx"
 #include "fs/AllocatedPath.hxx"
 #include "song/LightSong.hxx"
 #include "util/Manual.hxx"
-#include "Compiler.h"
+#include "util/Compiler.h"
+#include "config.h"
 
 #include <cassert>
 
@@ -70,7 +70,7 @@ class SimpleDatabase : public Database {
 
 	SimpleDatabase(const ConfigBlock &block);
 
-	SimpleDatabase(AllocatedPath &&_path, bool _compress);
+	SimpleDatabase(AllocatedPath &&_path, bool _compress) noexcept;
 
 public:
 	static Database *Create(EventLoop &main_event_loop,
@@ -108,23 +108,23 @@ public:
 	void Mount(const char *local_uri, const char *storage_uri);
 
 	gcc_nonnull_all
-	bool Unmount(const char *uri);
+	bool Unmount(const char *uri) noexcept;
 
 	/* virtual methods from class Database */
 	void Open() override;
-	void Close() override;
+	void Close() noexcept override;
 
 	const LightSong *GetSong(const char *uri_utf8) const override;
-	void ReturnSong(const LightSong *song) const override;
+	void ReturnSong(const LightSong *song) const noexcept override;
 
 	void Visit(const DatabaseSelection &selection,
 		   VisitDirectory visit_directory,
 		   VisitSong visit_song,
 		   VisitPlaylist visit_playlist) const override;
 
-	void VisitUniqueTags(const DatabaseSelection &selection,
-			     TagType tag_type, TagMask group_mask,
-			     VisitTag visit_tag) const override;
+	std::map<std::string, std::set<std::string>> CollectUniqueTags(const DatabaseSelection &selection,
+								       TagType tag_type,
+								       TagType group) const override;
 
 	DatabaseStats GetStats(const DatabaseSelection &selection) const override;
 
@@ -142,7 +142,7 @@ private:
 	 */
 	void Load();
 
-	Database *LockUmountSteal(const char *uri);
+	Database *LockUmountSteal(const char *uri) noexcept;
 };
 
 extern const DatabasePlugin simple_db_plugin;

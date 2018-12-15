@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,11 +16,10 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
- 
+
 #ifndef MPD_FS_STANDARD_DIRECTORY_HXX
 #define MPD_FS_STANDARD_DIRECTORY_HXX
 
-#include "check.h"
 #include "AllocatedPath.hxx"
 
 /**

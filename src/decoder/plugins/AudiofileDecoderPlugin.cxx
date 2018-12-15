@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "AudiofileDecoderPlugin.hxx"
 #include "../DecoderAPI.hxx"
 #include "input/InputStream.hxx"
@@ -219,9 +218,7 @@ audiofile_stream_decode(DecoderClient &client, InputStream &is)
 
 	DecoderCommand cmd;
 	do {
-		/* pick 1020 since its divisible for 8,16,24, and
-		   32-bit audio */
-		char chunk[1020];
+		uint8_t chunk[8192];
 		const int nframes =
 			afReadFrames(fh, AF_DEFAULT_TRACK, chunk,
 				     sizeof(chunk) / frame_size);

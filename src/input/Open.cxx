@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "InputStream.hxx"
 #include "Registry.hxx"
 #include "InputPlugin.hxx"
@@ -38,6 +37,9 @@ InputStream::Open(const char *url, Mutex &mutex)
 	}
 
 	input_plugins_for_each_enabled(plugin) {
+		if (!plugin->SupportsUri(url))
+			continue;
+
 		auto is = plugin->open(url, mutex);
 		if (is != nullptr)
 			return input_rewind_open(std::move(is));

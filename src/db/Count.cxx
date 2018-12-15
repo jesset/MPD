@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Count.hxx"
 #include "Selection.hxx"
 #include "Interface.hxx"
@@ -25,6 +24,7 @@
 #include "client/Response.hxx"
 #include "song/LightSong.hxx"
 #include "tag/Tag.hxx"
+#include "tag/VisitFallback.hxx"
 #include "TagPrint.hxx"
 
 #include <functional>
@@ -73,24 +73,15 @@ stats_visitor_song(SearchStats &stats, const LightSong &song) noexcept
 		stats.total_duration += duration;
 }
 
-static bool
-CollectGroupCounts(TagCountMap &map, TagType group, const Tag &tag) noexcept
+static void
+CollectGroupCounts(TagCountMap &map, const Tag &tag,
+		   const char *value) noexcept
 {
-	bool found = false;
-	for (const auto &item : tag) {
-		if (item.type == group) {
-			auto r = map.insert(std::make_pair(item.value,
-							   SearchStats()));
-			SearchStats &s = r.first->second;
-			++s.n_songs;
-			if (!tag.duration.IsNegative())
-				s.total_duration += tag.duration;
-
-			found = true;
-		}
-	}
-
-	return found;
+	auto r = map.insert(std::make_pair(value, SearchStats()));
+	SearchStats &s = r.first->second;
+	++s.n_songs;
+	if (!tag.duration.IsNegative())
+		s.total_duration += tag.duration;
 }
 
 static void
@@ -98,9 +89,10 @@ GroupCountVisitor(TagCountMap &map, TagType group,
 		  const LightSong &song) noexcept
 {
 	const Tag &tag = song.tag;
-	if (!CollectGroupCounts(map, group, tag) && group == TAG_ALBUM_ARTIST)
-		/* fall back to "Artist" if no "AlbumArtist" was found */
-		CollectGroupCounts(map, TAG_ARTIST, tag);
+	VisitTagWithFallbackOrEmpty(tag, group,
+				    std::bind(CollectGroupCounts, std::ref(map),
+					      std::cref(tag),
+					      std::placeholders::_1));
 }
 
 void

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,7 +24,6 @@
 #include "PlaylistFile.hxx"
 #include "MusicChunk.hxx"
 #include "StateFile.hxx"
-#include "player/Thread.hxx"
 #include "Mapper.hxx"
 #include "Permission.hxx"
 #include "Listen.hxx"
@@ -48,13 +47,14 @@
 #include "AudioParser.hxx"
 #include "pcm/PcmConvert.hxx"
 #include "unix/SignalHandlers.hxx"
-#include "system/FatalError.hxx"
 #include "thread/Slack.hxx"
 #include "net/Init.hxx"
 #include "lib/icu/Init.hxx"
-#include "config/Global.hxx"
+#include "config/File.hxx"
+#include "config/Check.hxx"
 #include "config/Data.hxx"
 #include "config/Param.hxx"
+#include "config/Path.hxx"
 #include "config/Defaults.hxx"
 #include "config/Option.hxx"
 #include "config/Domain.hxx"
@@ -94,6 +94,7 @@
 #include "java/File.hxx"
 #include "android/Environment.hxx"
 #include "android/Context.hxx"
+#include "android/LogListener.hxx"
 #include "fs/FileSystem.hxx"
 #include "org_musicpd_Bridge.h"
 #endif
@@ -123,10 +124,9 @@ static constexpr
 size_t MIN_BUFFER_SIZE = std::max(CHUNK_SIZE * 32,
 				  64 * KILOBYTE);
 
-static constexpr unsigned DEFAULT_BUFFER_BEFORE_PLAY = 10;
-
 #ifdef ANDROID
 Context *context;
+LogListener *logListener;
 #endif
 
 Instance *instance;
@@ -192,7 +192,7 @@ glue_db_init_and_load(const ConfigData &config)
 	if (instance->database == nullptr)
 		return true;
 
-	if (instance->database->GetPlugin().flags & DatabasePlugin::FLAG_REQUIRE_STORAGE) {
+	if (instance->database->GetPlugin().RequireStorage()) {
 		InitStorage(config, instance->io_thread.GetEventLoop());
 
 		if (instance->storage == nullptr) {
@@ -216,17 +216,17 @@ glue_db_init_and_load(const ConfigData &config)
 		std::throw_with_nested(std::runtime_error("Failed to open database plugin"));
 	}
 
-	if (!instance->database->IsPlugin(simple_db_plugin))
+	auto *db = dynamic_cast<SimpleDatabase *>(instance->database);
+	if (db == nullptr)
 		return true;
 
-	SimpleDatabase &db = *(SimpleDatabase *)instance->database;
 	instance->update = new UpdateService(config,
-					     instance->event_loop, db,
+					     instance->event_loop, *db,
 					     static_cast<CompositeStorage &>(*instance->storage),
 					     *instance);
 
 	/* run database update after daemonization? */
-	return db.FileExists();
+	return db->FileExists();
 }
 
 static bool
@@ -283,9 +283,9 @@ initialize_decoder_and_player(const ConfigData &config,
 		char *test;
 		long tmp = strtol(param->value.c_str(), &test, 10);
 		if (*test != '\0' || tmp <= 0 || tmp == LONG_MAX)
-			FormatFatalError("buffer size \"%s\" is not a "
-					 "positive integer, line %i",
-					 param->value.c_str(), param->line);
+			throw FormatRuntimeError("buffer size \"%s\" is not a "
+						 "positive integer, line %i",
+						 param->value.c_str(), param->line);
 		buffer_size = tmp * KILOBYTE;
 
 		if (buffer_size < MIN_BUFFER_SIZE) {
@@ -300,39 +300,8 @@ initialize_decoder_and_player(const ConfigData &config,
 	const unsigned buffered_chunks = buffer_size / CHUNK_SIZE;
 
 	if (buffered_chunks >= 1 << 15)
-		FormatFatalError("buffer size \"%lu\" is too big",
-				 (unsigned long)buffer_size);
-
-	float perc;
-	param = config.GetParam(ConfigOption::BUFFER_BEFORE_PLAY);
-	if (param != nullptr) {
-		char *test;
-		perc = strtod(param->value.c_str(), &test);
-		if (*test != '%' || perc < 0 || perc > 100) {
-			FormatFatalError("buffered before play \"%s\" is not "
-					 "a positive percentage and less "
-					 "than 100 percent, line %i",
-					 param->value.c_str(), param->line);
-		}
-
-		if (perc > 80) {
-			/* this upper limit should avoid deadlocks
-			   which can occur because the DecoderThread
-			   cannot ever fill the music buffer to
-			   exactly 100%; a few chunks always need to
-			   be available to generate silence in
-			   Player::SendSilence() */
-			FormatError(config_domain,
-				    "buffer_before_play is too large (%f%%), capping at 80%%; please fix your configuration",
-				    perc);
-			perc = 80;
-		}
-	} else
-		perc = DEFAULT_BUFFER_BEFORE_PLAY;
-
-	unsigned buffered_before_play = (perc / 100) * buffered_chunks;
-	if (buffered_before_play > buffered_chunks)
-		buffered_before_play = buffered_chunks;
+		throw FormatRuntimeError("buffer size \"%lu\" is too big",
+					 (unsigned long)buffer_size);
 
 	const unsigned max_length =
 		config.GetPositive(ConfigOption::MAX_PLAYLIST_LENGTH,
@@ -354,7 +323,6 @@ initialize_decoder_and_player(const ConfigData &config,
 					  "default",
 					  max_length,
 					  buffered_chunks,
-					  buffered_before_play,
 					  configured_audio_format,
 					  replay_gain_config);
 	auto &partition = instance->partitions.back();
@@ -473,7 +441,7 @@ MainOrThrow(int argc, char *argv[])
 	const ODBus::ScopeInit dbus_init;
 #endif
 
-	config_global_init();
+	ConfigData raw_config;
 
 #ifdef ANDROID
 	(void)argc;
@@ -484,13 +452,13 @@ MainOrThrow(int argc, char *argv[])
 		const auto config_path =
 			sdcard / Path::FromFS("mpd.conf");
 		if (FileExists(config_path))
-			ReadConfigFile(config_path);
+			ReadConfigFile(raw_config, config_path);
 	}
 #else
-	ParseCommandLine(argc, argv, options);
+	ParseCommandLine(argc, argv, options, raw_config);
 #endif
 
-	const auto &raw_config = GetGlobalConfig();
+	InitPathParser(raw_config);
 	const auto config = LoadConfig(raw_config);
 
 #ifdef ENABLE_DAEMON
@@ -609,16 +577,11 @@ mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 
 	ZeroconfInit(raw_config, instance->event_loop);
 
-	for (auto &partition : instance->partitions)
-		StartPlayerThread(partition.pc);
-
 #ifdef ENABLE_DATABASE
 	if (create_db) {
 		/* the database failed to load: recreate the
 		   database */
-		unsigned job = instance->update->Enqueue("", true);
-		if (job == 0)
-			FatalError("directory update failed");
+		instance->update->Enqueue("", true);
 	}
 #endif
 
@@ -641,7 +604,7 @@ mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 	}
 #endif
 
-	config_global_check();
+	Check(raw_config);
 
 	/* enable all audio outputs (if not already done by
 	   playlist_state_restore() */
@@ -711,7 +674,6 @@ mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 #ifdef ENABLE_ARCHIVE
 	archive_plugin_deinit_all();
 #endif
-	config_global_finish();
 	instance->rtio_thread.Stop();
 	instance->io_thread.Stop();
 #ifndef ANDROID
@@ -725,16 +687,19 @@ mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 
 gcc_visibility_default
 JNIEXPORT void JNICALL
-Java_org_musicpd_Bridge_run(JNIEnv *env, jclass, jobject _context)
+Java_org_musicpd_Bridge_run(JNIEnv *env, jclass, jobject _context, jobject _logListener)
 {
 	Java::Init(env);
 	Java::File::Initialise(env);
 	Environment::Initialise(env);
 
 	context = new Context(env, _context);
+	if (_logListener != nullptr)
+		logListener = new LogListener(env, _logListener);
 
 	mpd_main(0, nullptr);
 
+	delete logListener;
 	delete context;
 	Environment::Deinitialise(env);
 }

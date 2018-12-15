@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 #ifndef MPD_FS_FILESYSTEM_HXX
 #define MPD_FS_FILESYSTEM_HXX
 
-#include "check.h"
 #include "Traits.hxx"
 #include "Path.hxx"
 #include "system/UniqueFileDescriptor.hxx"

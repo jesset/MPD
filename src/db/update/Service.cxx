@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "Service.hxx"
 #include "Walk.hxx"
 #include "UpdateDomain.hxx"
@@ -26,6 +25,7 @@
 #include "db/plugins/simple/SimpleDatabasePlugin.hxx"
 #include "db/plugins/simple/Directory.hxx"
 #include "storage/CompositeStorage.hxx"
+#include "protocol/Ack.hxx"
 #include "Idle.hxx"
 #include "Log.hxx"
 #include "thread/Thread.hxx"
@@ -94,11 +94,9 @@ UpdateService::CancelMount(const char *uri)
 		cancel_current = next.IsDefined() && next.storage == storage2;
 	}
 
-	Database &_db2 = *lr.directory->mounted_database;
-	if (_db2.IsPlugin(simple_db_plugin)) {
-		SimpleDatabase &db2 = static_cast<SimpleDatabase &>(_db2);
-		queue.Erase(db2);
-		cancel_current |= next.IsDefined() && next.db == &db2;
+	if (auto *db2 = dynamic_cast<SimpleDatabase *>(lr.directory->mounted_database)) {
+		queue.Erase(*db2);
+		cancel_current |= next.IsDefined() && next.db == db2;
 	}
 
 	if (cancel_current && walk != nullptr) {
@@ -190,12 +188,9 @@ UpdateService::Enqueue(const char *path, bool discard)
 		/* follow the mountpoint, update the mounted
 		   database */
 
-		Database &_db2 = *lr.directory->mounted_database;
-		if (!_db2.IsPlugin(simple_db_plugin))
-			/* cannot update this type of database */
-			return 0;
-
-		db2 = static_cast<SimpleDatabase *>(&_db2);
+		db2 = dynamic_cast<SimpleDatabase *>(lr.directory->mounted_database);
+		if (db2 == nullptr)
+			throw std::runtime_error("Cannot update this type of database");
 
 		if (lr.uri == nullptr) {
 			storage2 = storage.GetMount(path);
@@ -219,12 +214,13 @@ UpdateService::Enqueue(const char *path, bool discard)
 	if (storage2 == nullptr)
 		/* no storage found at this mount point - should not
 		   happen */
-		return 0;
+		throw std::runtime_error("No storage at this path");
 
 	if (walk != nullptr) {
 		const unsigned id = GenerateId();
 		if (!queue.Push(*db2, *storage2, path, discard, id))
-			return 0;
+			throw ProtocolError(ACK_ERROR_UPDATE_ALREADY,
+					    "Update queue is full");
 
 		update_task_id = id;
 		return id;

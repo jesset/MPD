@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2017 The Music Player Daemon Project
+ * Copyright 2003-2018 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,6 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
 #include "CurlInputPlugin.hxx"
 #include "lib/curl/Error.hxx"
 #include "lib/curl/Easy.hxx"
@@ -473,8 +472,15 @@ input_curl_open(const char *url, Mutex &mutex)
 	return CurlInputStream::Open(url, {}, mutex);
 }
 
+static constexpr const char *curl_prefixes[] = {
+	"http://",
+	"https://",
+	nullptr
+};
+
 const struct InputPlugin input_plugin_curl = {
 	"curl",
+	curl_prefixes,
 	input_curl_init,
 	input_curl_finish,
 	input_curl_open,
