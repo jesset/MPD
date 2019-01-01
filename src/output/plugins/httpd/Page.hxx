@@ -28,25 +28,25 @@
 #include <stdint.h>
 
 /**
- * A dynamically allocated buffer which keeps track of its reference
- * count.  This is useful for passing buffers around, when several
- * instances hold references to one buffer.
+ * A dynamically allocated buffer.  It is used to pass
+ * reference-counted buffers around (using std::shared_ptr), when
+ * several instances hold references to one buffer.
  */
 class Page {
 	AllocatedArray<uint8_t> buffer;
 
 public:
-	explicit Page(size_t _size):buffer(_size) {}
-	explicit Page(AllocatedArray<uint8_t> &&_buffer)
+	explicit Page(size_t _size) noexcept:buffer(_size) {}
+	explicit Page(AllocatedArray<uint8_t> &&_buffer) noexcept
 		:buffer(std::move(_buffer)) {}
 
-	Page(const void *data, size_t size);
+	Page(const void *data, size_t size) noexcept;
 
-	size_t GetSize() const {
+	size_t GetSize() const noexcept {
 		return buffer.size();
 	}
 
-	const uint8_t *GetData() const {
+	const uint8_t *GetData() const noexcept {
 		return &buffer.front();
 	}
 };

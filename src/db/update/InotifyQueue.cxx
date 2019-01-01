@@ -21,29 +21,42 @@
 #include "InotifyDomain.hxx"
 #include "Service.hxx"
 #include "Log.hxx"
+#include "protocol/Ack.hxx" // for class ProtocolError
 #include "util/StringCompare.hxx"
 
 /**
  * Wait this long after the last change before calling
- * update_enqueue().  This increases the probability that updates can
- * be bundled.
+ * UpdateService::Enqueue().  This increases the probability that
+ * updates can be bundled.
  */
 static constexpr std::chrono::steady_clock::duration INOTIFY_UPDATE_DELAY =
 	std::chrono::seconds(5);
 
 void
-InotifyQueue::OnDelay()
+InotifyQueue::OnDelay() noexcept
 {
 	unsigned id;
 
 	while (!queue.empty()) {
 		const char *uri_utf8 = queue.front().c_str();
 
-		id = update.Enqueue(uri_utf8, false);
-		if (id == 0) {
-			/* retry later */
-			delay_event.Schedule(INOTIFY_UPDATE_DELAY);
-			return;
+		try {
+			try {
+				id = update.Enqueue(uri_utf8, false);
+			} catch (const ProtocolError &e) {
+				if (e.GetCode() == ACK_ERROR_UPDATE_ALREADY) {
+					/* retry later */
+					delay_event.Schedule(INOTIFY_UPDATE_DELAY);
+					return;
+				}
+
+				throw;
+			}
+		} catch (...) {
+			FormatError(std::current_exception(),
+				    "Failed to enqueue '%s'", uri_utf8);
+			queue.pop_front();
+			continue;
 		}
 
 		FormatDebug(inotify_domain, "updating '%s' job=%u",
