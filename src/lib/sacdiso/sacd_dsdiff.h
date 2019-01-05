@@ -1,6 +1,6 @@
 /*
 * MPD SACD Decoder plugin
-* Copyright (c) 2011-2016 Maxim V.Anisiutkin <maxim.anisiutkin@gmail.com>
+* Copyright (c) 2011-2019 Maxim V.Anisiutkin <maxim.anisiutkin@gmail.com>
 *
 * This program is free software; you can redistribute it and/or
 * modify it under the terms of the GNU Lesser General Public
@@ -71,8 +71,7 @@ class id3tags_t {
 public:
 	uint32_t index;
 	uint64_t offset;
-	uint64_t size;
-	vector<uint8_t> data;
+	vector<uint8_t> tag_value;
 };
 
 class sacd_dsdiff_t : public sacd_reader_t {
