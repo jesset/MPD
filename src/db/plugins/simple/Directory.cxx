@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -37,22 +37,25 @@
 #include <string.h>
 #include <stdlib.h>
 
-Directory::Directory(std::string &&_path_utf8, Directory *_parent)
+Directory::Directory(std::string &&_path_utf8, Directory *_parent) noexcept
 	:parent(_parent),
 	 path(std::move(_path_utf8))
 {
 }
 
-Directory::~Directory()
+Directory::~Directory() noexcept
 {
-	delete mounted_database;
+	if (mounted_database != nullptr) {
+		mounted_database->Close();
+		mounted_database.reset();
+	}
 
 	songs.clear_and_dispose(Song::Disposer());
 	children.clear_and_dispose(DeleteDisposer());
 }
 
 void
-Directory::Delete()
+Directory::Delete() noexcept
 {
 	assert(holding_db_lock());
 	assert(parent != nullptr);
@@ -70,7 +73,7 @@ Directory::GetName() const noexcept
 }
 
 Directory *
-Directory::CreateChild(const char *name_utf8)
+Directory::CreateChild(const char *name_utf8) noexcept
 {
 	assert(holding_db_lock());
 	assert(name_utf8 != nullptr);
@@ -160,7 +163,7 @@ Directory::LookupDirectory(const char *uri) noexcept
 }
 
 void
-Directory::AddSong(Song *song)
+Directory::AddSong(Song *song) noexcept
 {
 	assert(holding_db_lock());
 	assert(song != nullptr);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2012-2019 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,8 +27,8 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ALLOCATED_SOCKET_ADDRESS_HPP
-#define ALLOCATED_SOCKET_ADDRESS_HPP
+#ifndef ALLOCATED_SOCKET_ADDRESS_HXX
+#define ALLOCATED_SOCKET_ADDRESS_HXX
 
 #include "SocketAddress.hxx"
 #include "Features.hxx"
@@ -141,6 +141,20 @@ public:
 
 #ifdef HAVE_UN
 	/**
+	 * @see SocketAddress::GetLocalRaw()
+	 */
+	gcc_pure
+	StringView GetLocalRaw() const noexcept;
+
+	/**
+	 * @see SocketAddress::GetLocalPath()
+	 */
+	gcc_pure
+	const char *GetLocalPath() const noexcept {
+		return ((SocketAddress)*this).GetLocalPath();
+	}
+
+	/**
 	 * Make this a "local" address (UNIX domain socket).  If the path
 	 * begins with a '@', then the rest specifies an "abstract" local
 	 * address.
@@ -149,6 +163,14 @@ public:
 #endif
 
 #ifdef HAVE_TCP
+	bool IsV6Any() const noexcept {
+		return ((SocketAddress)*this).IsV6Any();
+	}
+
+	bool IsV4Mapped() const noexcept {
+		return ((SocketAddress)*this).IsV4Mapped();
+	}
+
 	/**
 	 * Extract the port number.  Returns 0 if not applicable.
 	 */

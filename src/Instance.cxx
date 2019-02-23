@@ -30,6 +30,9 @@
 
 #ifdef ENABLE_DATABASE
 #include "db/DatabaseError.hxx"
+#include "db/Interface.hxx"
+#include "db/update/Service.hxx"
+#include "storage/StorageInterface.hxx"
 
 #ifdef ENABLE_SQLITE
 #include "sticker/StickerDatabase.hxx"
@@ -48,7 +51,19 @@ Instance::Instance()
 {
 }
 
-Instance::~Instance() noexcept = default;
+Instance::~Instance() noexcept
+{
+#ifdef ENABLE_DATABASE
+	delete update;
+
+	if (database != nullptr) {
+		database->Close();
+		database.reset();
+	}
+
+	delete storage;
+#endif
+}
 
 Partition *
 Instance::FindPartition(const char *name) noexcept

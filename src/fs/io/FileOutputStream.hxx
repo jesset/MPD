@@ -59,6 +59,10 @@ class Path;
 class FileOutputStream final : public OutputStream {
 	const AllocatedPath path;
 
+#ifdef __linux__
+	const FileDescriptor directory_fd;
+#endif
+
 #ifdef _WIN32
 	HANDLE handle = INVALID_HANDLE_VALUE;
 #else
@@ -108,6 +112,11 @@ private:
 public:
 	explicit FileOutputStream(Path _path, Mode _mode=Mode::CREATE);
 
+#ifdef __linux__
+	FileOutputStream(FileDescriptor _directory_fd, Path _path,
+			 Mode _mode=Mode::CREATE);
+#endif
+
 	~FileOutputStream() noexcept {
 		if (IsDefined())
 			Cancel();
@@ -133,6 +142,7 @@ public:
 private:
 	void OpenCreate(bool visible);
 	void OpenAppend(bool create);
+	void Open();
 
 	bool Close() noexcept {
 		assert(IsDefined());

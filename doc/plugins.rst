@@ -87,6 +87,22 @@ Mount file systems (e.g. USB sticks or other removable media) using
 the udisks2 daemon via D-Bus.  To obtain a valid udisks2 URI, consult
 :ref:`the according neighbor plugin <neighbor_plugin>`.
 
+It might be necessary to grant :program:`MPD` privileges to control
+:program:`udisks2` through :program:`policykit`.  To do this, create a
+file called :file:`/usr/share/polkit-1/rules.d/mpd-udisks.rules` with
+the following text::
+
+ polkit.addRule(function(action, subject) {
+   if ((action.id == "org.freedesktop.udisks2.filesystem-mount" ||
+        action.id == "org.freedesktop.udisks2.filesystem-mount-other-seat") &&
+       subject.user == "mpd") {
+       return polkit.Result.YES;
+   }
+ });
+
+If you run MPD as a different user, change ``mpd`` to the name of your
+MPD user.
+
 .. _neighbor_plugin:
 
 Neighbor plugins
@@ -935,6 +951,8 @@ The pulse plugin connects to a `PulseAudio <http://www.freedesktop.org/wiki/Soft
      - Sets the host name of the PulseAudio server. By default, :program:`MPD` connects to the local PulseAudio server.
    * - **sink NAME**
      - Specifies the name of the PulseAudio sink :program:`MPD` should play on.
+   * - **scale_volume FACTOR**
+     - Specifies a linear scaling coefficient (ranging from 0.5 to 5.0) to apply when adjusting volume through :program:`MPD`.  For example, chosing a factor equal to ``"0.7"`` means that setting the volume to 100 in :program:`MPD` will set the PulseAudio volume to 70%, and a factor equal to ``"3.5"`` means that volume 100 in :program:`MPD` corresponds to a 350% PulseAudio volume.
 
 recorder
 ~~~~~~~~
@@ -974,6 +992,8 @@ You must set a format.
      - Set the timeout for the shout connection in seconds. Defaults to 2 seconds.
    * - **protocol icecast2|icecast1|shoutcast**
      - Specifies the protocol that wil be used to connect to the server. The default is "icecast2".
+   * - **tls disabled|auto|auto_no_plain|rfc2818|rfc2817**
+     - Specifies what kind of TLS to use. The default is "disabled" (no TLS).
    * - **mount URI**
      - Mounts the :program:`MPD` stream in the specified URI.
    * - **user USERNAME**

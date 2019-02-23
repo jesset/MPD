@@ -46,6 +46,8 @@ class UdisksStorage final : public Storage {
 	const std::string base_uri;
 	const std::string id;
 
+	const AllocatedPath inside_path;
+
 	std::string dbus_path;
 
 	SafeSingleton<ODBus::Glue> dbus_glue;
@@ -64,10 +66,12 @@ class UdisksStorage final : public Storage {
 	DeferEvent defer_mount, defer_unmount;
 
 public:
-	template<typename B, typename I>
-	UdisksStorage(EventLoop &_event_loop, B &&_base_uri, I &&_id)
+	template<typename B, typename I, typename IP>
+	UdisksStorage(EventLoop &_event_loop, B &&_base_uri, I &&_id,
+		      IP &&_inside_path)
 		:base_uri(std::forward<B>(_base_uri)),
 		 id(std::forward<I>(_id)),
+		 inside_path(std::forward<IP>(_inside_path)),
 		 dbus_glue(_event_loop),
 		 defer_mount(_event_loop, BIND_THIS_METHOD(DeferredMount)),
 		 defer_unmount(_event_loop, BIND_THIS_METHOD(DeferredUnmount)) {}
@@ -120,6 +124,9 @@ public:
 	const char *MapToRelativeUTF8(const char *uri_utf8) const noexcept override;
 
 private:
+	void SetMountPoint(Path mount_point);
+	void LockSetMountPoint(Path mount_point);
+
 	void OnListReply(ODBus::Message reply) noexcept;
 
 	void MountWait();
@@ -131,20 +138,52 @@ private:
 	void OnUnmountNotify(ODBus::Message reply) noexcept;
 };
 
+inline void
+UdisksStorage::SetMountPoint(Path mount_point)
+{
+	mounted_storage = inside_path.IsNull()
+		? CreateLocalStorage(mount_point)
+		: CreateLocalStorage(mount_point / inside_path);
+
+	mount_error = {};
+	want_mount = false;
+	cond.broadcast();
+}
+
+void
+UdisksStorage::LockSetMountPoint(Path mount_point)
+{
+	const std::lock_guard<Mutex> lock(mutex);
+	SetMountPoint(mount_point);
+}
+
 void
 UdisksStorage::OnListReply(ODBus::Message reply) noexcept
 {
 	using namespace UDisks2;
 
 	try {
-		ParseObjects(reply, [this](Object &&o) {
-				if (o.IsId(id))
-					dbus_path = std::move(o.path);
-			});
+		std::string mount_point;
+
+		ParseObjects(reply, [this, &mount_point](Object &&o) {
+			if (!o.IsId(id))
+				return;
+
+			dbus_path = std::move(o.path);
+			mount_point = std::move(o.mount_point);
+		});
 
 		if (dbus_path.empty())
 			throw FormatRuntimeError("No such UDisks2 object: %s",
 						 id.c_str());
+
+		if (!mount_point.empty()) {
+			/* already mounted: don't attempt to mount
+			   again, because this would result in
+			   org.freedesktop.UDisks2.Error.AlreadyMounted */
+			LockSetMountPoint(Path::FromFS(mount_point.c_str()));
+			return;
+		}
 	} catch (...) {
 		const std::lock_guard<Mutex> lock(mutex);
 		mount_error = std::current_exception();
@@ -222,12 +261,7 @@ try {
 		throw std::runtime_error("Malformed 'Mount' response");
 
 	const char *mount_path = i.GetString();
-
-	const std::lock_guard<Mutex> lock(mutex);
-	mounted_storage = CreateLocalStorage(Path::FromFS(mount_path));
-	mount_error = {};
-	want_mount = false;
-	cond.broadcast();
+	LockSetMountPoint(Path::FromFS(mount_path));
 } catch (...) {
 	const std::lock_guard<Mutex> lock(mutex);
 	mount_error = std::current_exception();
@@ -297,16 +331,18 @@ UdisksStorage::MapUTF8(const char *uri_utf8) const noexcept
 {
 	assert(uri_utf8 != nullptr);
 
+	if (StringIsEmpty(uri_utf8))
+		/* kludge for a special case: return the "udisks://"
+		   URI if the parameter is an empty string to fix the
+		   mount URIs in the state file */
+		return base_uri;
+
 	try {
 		const_cast<UdisksStorage *>(this)->MountWait();
 
 		return mounted_storage->MapUTF8(uri_utf8);
 	} catch (...) {
 		/* fallback - not usable but the best we can do */
-
-		if (StringIsEmpty(uri_utf8))
-			return base_uri;
-
 		return PathTraitsUTF8::Build(base_uri.c_str(), uri_utf8);
 	}
 }
@@ -333,12 +369,17 @@ CreateUdisksStorageURI(EventLoop &event_loop, const char *base_uri)
 	} else {
 		id = {id_begin, relative_path};
 		++relative_path;
+		while (*relative_path == '/')
+			++relative_path;
 	}
 
-	// TODO: use relative_path
+	auto inside_path = *relative_path != 0
+		? AllocatedPath::FromUTF8Throw(relative_path)
+		: nullptr;
 
 	return std::make_unique<UdisksStorage>(event_loop, base_uri,
-					       std::move(id));
+					       std::move(id),
+					       std::move(inside_path));
 }
 
 const StoragePlugin udisks_storage_plugin = {

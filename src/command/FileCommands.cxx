@@ -37,9 +37,11 @@
 #include "fs/FileInfo.hxx"
 #include "fs/DirectoryReader.hxx"
 #include "input/InputStream.hxx"
+#include "input/Error.hxx"
 #include "LocateUri.hxx"
 #include "TimePrint.hxx"
 #include "thread/Mutex.hxx"
+#include "Log.hxx"
 
 #include <assert.h>
 #include <inttypes.h> /* for PRIu64 */
@@ -256,7 +258,11 @@ find_stream_art(const char *directory, Mutex &mutex)
 
 		try {
 			return InputStream::OpenReady(art_file.c_str(), mutex);
-		} catch (const std::exception &e) {}
+		} catch (...) {
+			auto e = std::current_exception();
+			if (!IsFileNotFound(e))
+				LogError(e);
+		}
 	}
 	return nullptr;
 }
@@ -285,8 +291,11 @@ read_stream_art(Response &r, const char *uri, size_t offset)
 	uint8_t buffer[CHUNK_SIZE];
 	size_t read_size;
 
-	is->Seek(offset);
-	read_size = is->Read(&buffer, CHUNK_SIZE);
+	{
+		const std::lock_guard<Mutex> protect(mutex);
+		is->Seek(offset);
+		read_size = is->Read(&buffer, CHUNK_SIZE);
+	}
 
 	r.Format("size: %" PRIoffset "\n"
 			 "binary: %u\n",

@@ -112,8 +112,8 @@ liblame = AutotoolsProject(
 )
 
 ffmpeg = FfmpegProject(
-    'http://ffmpeg.org/releases/ffmpeg-4.1.tar.xz',
-    'a38ec4d026efb58506a99ad5cd23d5a9793b4bf415f2c4c2e9c1bb444acd1994',
+    'http://ffmpeg.org/releases/ffmpeg-4.1.1.tar.xz',
+    '373749824dfd334d84e55dff406729edfd1606575ee44dd485d97d45ea4d2d86',
     'lib/libavcodec.a',
     [
         '--disable-shared', '--enable-static',
@@ -341,8 +341,8 @@ ffmpeg = FfmpegProject(
 )
 
 curl = AutotoolsProject(
-    'http://curl.haxx.se/download/curl-7.62.0.tar.xz',
-    'dab5643a5fe775ae92570b9f3df6b0ef4bc2a827a959361fb130c73b721275c1',
+    'http://curl.haxx.se/download/curl-7.64.0.tar.xz',
+    '2f2f13fa34d44aa29cb444077ad7dc4dc6d189584ad552e0aaeb06e608af6001',
     'lib/libcurl.a',
     [
         '--disable-shared', '--enable-static',
@@ -392,7 +392,7 @@ libnfs = AutotoolsProject(
 )
 
 boost = BoostProject(
-    'http://downloads.sourceforge.net/project/boost/boost/1.68.0/boost_1_68_0.tar.bz2',
-    '7f6130bc3cf65f56a618888ce9d5ea704fa10b462be126ad053e80e553d6d8b7',
+    'http://downloads.sourceforge.net/project/boost/boost/1.69.0/boost_1_69_0.tar.bz2',
+    '8f32d4617390d1c2d16f26a27ab60d97807b35440d45891fa340fc2648b04406',
     'include/boost/version.hpp',
 )

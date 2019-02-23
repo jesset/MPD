@@ -17,26 +17,25 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef MPD_DATABASE_GLUE_HXX
-#define MPD_DATABASE_GLUE_HXX
+#ifndef MPD_TEST_CONFIG_GLUE_HXX
+#define MPD_TEST_CONFIG_GLUE_HXX
 
-#include "Ptr.hxx"
+#include "config/File.hxx"
+#include "config/Migrate.hxx"
+#include "config/Data.hxx"
+#include "fs/Path.hxx"
 
-struct ConfigBlock;
-class EventLoop;
-class DatabaseListener;
+inline ConfigData
+AutoLoadConfigFile(Path path)
+{
+	ConfigData data;
 
-/**
- * Initialize the database library.
- *
- * Throws #std::runtime_error on error.
- *
- * @param block the database configuration block
- */
-DatabasePtr
-DatabaseGlobalInit(EventLoop &main_event_loop,
-		   EventLoop &io_event_loop,
-		   DatabaseListener &listener,
-		   const ConfigBlock &block);
+	if (!path.IsNull()) {
+		ReadConfigFile(data, path);
+		Migrate(data);
+	}
+
+	return data;
+}
 
 #endif

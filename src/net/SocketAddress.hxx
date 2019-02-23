@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2017 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2012-2019 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -93,7 +93,7 @@ public:
 	 * Does the object have a well-defined address?  Check !IsNull()
 	 * before calling this method.
 	 */
-	bool IsDefined() const noexcept {
+	constexpr bool IsDefined() const noexcept {
 		return GetFamily() != AF_UNSPEC;
 	}
 
@@ -106,6 +106,13 @@ public:
 	 */
 	gcc_pure
 	StringView GetLocalRaw() const noexcept;
+
+	/**
+	 * Returns the local socket path or nullptr if not applicable
+	 * (or if the path is corrupt).
+	 */
+	gcc_pure
+	const char *GetLocalPath() const noexcept;
 #endif
 
 #ifdef HAVE_TCP

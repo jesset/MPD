@@ -23,6 +23,7 @@
 
 #include "config.h"
 #include "CdioParanoiaInputPlugin.hxx"
+#include "lib/cdio/Paranoia.hxx"
 #include "../InputStream.hxx"
 #include "../InputPlugin.hxx"
 #include "util/TruncateString.hxx"
@@ -41,18 +42,12 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#ifdef HAVE_CDIO_PARANOIA_PARANOIA_H
-#include <cdio/paranoia/paranoia.h>
-#else
-#include <cdio/paranoia.h>
-#endif
-
 #include <cdio/cd_types.h>
 
 class CdioParanoiaInputStream final : public InputStream {
 	cdrom_drive_t *const drv;
 	CdIo_t *const cdio;
-	cdrom_paranoia_t *const para;
+	CdromParanoia para;
 
 	const lsn_t lsn_from, lsn_to;
 	int lsn_relofs;
@@ -66,18 +61,17 @@ class CdioParanoiaInputStream final : public InputStream {
 				bool reverse_endian,
 				lsn_t _lsn_from, lsn_t _lsn_to)
 		:InputStream(_uri, _mutex),
-		 drv(_drv), cdio(_cdio), para(cdio_paranoia_init(drv)),
+		 drv(_drv), cdio(_cdio), para(drv),
 		 lsn_from(_lsn_from), lsn_to(_lsn_to),
 		 lsn_relofs(0),
 		 buffer_lsn(-1)
 	{
 		/* Set reading mode for full paranoia, but allow
 		   skipping sectors. */
-		paranoia_modeset(para,
-				 PARANOIA_MODE_FULL^PARANOIA_MODE_NEVERSKIP);
+		para.SetMode(PARANOIA_MODE_FULL^PARANOIA_MODE_NEVERSKIP);
 
 		/* seek to beginning of the track */
-		cdio_paranoia_seek(para, lsn_from, SEEK_SET);
+		para.Seek(lsn_from);
 
 		seekable = true;
 		size = (lsn_to - lsn_from + 1) * CDIO_CD_FRAMESIZE_RAW;
@@ -90,7 +84,7 @@ class CdioParanoiaInputStream final : public InputStream {
 	}
 
 	~CdioParanoiaInputStream() {
-		cdio_paranoia_free(para);
+		para = {};
 		cdio_cddap_close_no_free_cdio(drv);
 		cdio_destroy(cdio);
 	}
@@ -208,10 +202,10 @@ input_cdio_open(const char *uri,
 		throw std::runtime_error("Unable to identify audio CD disc.");
 	}
 
-	cdda_verbose_set(drv, CDDA_MESSAGE_FORGETIT, CDDA_MESSAGE_FORGETIT);
+	cdio_cddap_verbose_set(drv, CDDA_MESSAGE_FORGETIT, CDDA_MESSAGE_FORGETIT);
 	if (speed > 0) {
 		FormatDebug(cdio_domain,"Attempting to set CD speed to %dx",speed);
-		cdda_speed_set(drv,speed);
+		cdio_cddap_speed_set(drv,speed);
 	}
 
 	if (0 != cdio_cddap_open(drv)) {
@@ -277,7 +271,7 @@ CdioParanoiaInputStream::Seek(offset_type new_offset)
 
 	{
 		const ScopeUnlock unlock(mutex);
-		cdio_paranoia_seek(para, lsn_from + lsn_relofs, SEEK_SET);
+		para.Seek(lsn_from + lsn_relofs);
 	}
 }
 
@@ -285,56 +279,53 @@ size_t
 CdioParanoiaInputStream::Read(void *ptr, size_t length)
 {
 	size_t nbytes = 0;
-	int diff;
-	size_t len, maxwrite;
-	int16_t *rbuf;
-	char *s_err, *s_mess;
 	char *wptr = (char *) ptr;
 
 	while (length > 0) {
-
-
 		/* end of track ? */
 		if (lsn_from + lsn_relofs > lsn_to)
 			break;
 
 		//current sector was changed ?
+		const int16_t *rbuf;
 		if (lsn_relofs != buffer_lsn) {
 			const ScopeUnlock unlock(mutex);
 
-			rbuf = cdio_paranoia_read(para, nullptr);
+			try {
+				rbuf = para.Read().data;
+			} catch (...) {
+				char *s_err = cdio_cddap_errors(drv);
+				if (s_err) {
+					FormatError(cdio_domain,
+						    "paranoia_read: %s", s_err);
+#if LIBCDIO_VERSION_NUM >= 90
+					cdio_cddap_free_messages(s_err);
+#else
+					free(s_err);
+#endif
+				}
 
-			s_err = cdda_errors(drv);
-			if (s_err) {
-				FormatError(cdio_domain,
-					    "paranoia_read: %s", s_err);
-				free(s_err);
+				throw;
 			}
-			s_mess = cdda_messages(drv);
-			if (s_mess) {
-				free(s_mess);
-			}
-			if (!rbuf)
-				throw std::runtime_error("paranoia read error");
 
 			//store current buffer
 			memcpy(buffer, rbuf, CDIO_CD_FRAMESIZE_RAW);
 			buffer_lsn = lsn_relofs;
 		} else {
 			//use cached sector
-			rbuf = (int16_t *)buffer;
+			rbuf = (const int16_t *)buffer;
 		}
 
 		//correct offset
-		diff = offset - lsn_relofs * CDIO_CD_FRAMESIZE_RAW;
+		const int diff = offset - lsn_relofs * CDIO_CD_FRAMESIZE_RAW;
 
 		assert(diff >= 0 && diff < CDIO_CD_FRAMESIZE_RAW);
 
-		maxwrite = CDIO_CD_FRAMESIZE_RAW - diff;  //# of bytes pending in current buffer
-		len = (length < maxwrite? length : maxwrite);
+		const size_t maxwrite = CDIO_CD_FRAMESIZE_RAW - diff;  //# of bytes pending in current buffer
+		const size_t len = (length < maxwrite? length : maxwrite);
 
 		//skip diff bytes from this lsn
-		memcpy(wptr, ((char*)rbuf) + diff, len);
+		memcpy(wptr, ((const char *)rbuf) + diff, len);
 		//update pointer
 		wptr += len;
 		nbytes += len;

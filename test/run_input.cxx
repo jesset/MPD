@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,9 +20,7 @@
 #include "config.h"
 #include "TagSave.hxx"
 #include "tag/Tag.hxx"
-#include "config/File.hxx"
-#include "config/Migrate.hxx"
-#include "config/Data.hxx"
+#include "ConfigGlue.hxx"
 #include "input/InputStream.hxx"
 #include "input/Init.hxx"
 #include "input/Registry.hxx"
@@ -103,32 +101,21 @@ ParseCommandLine(int argc, char **argv)
 }
 
 class GlobalInit {
-	ConfigData config;
+	const ConfigData config;
 	EventThread io_thread;
 
+#ifdef ENABLE_ARCHIVE
+	const ScopeArchivePluginsInit archive_plugins_init;
+#endif
+
+	const ScopeInputPluginsInit input_plugins_init;
+
 public:
-	GlobalInit(Path config_path, bool verbose) {
-		SetLogThreshold(verbose ? LogLevel::DEBUG : LogLevel::INFO);
-
-		if (!config_path.IsNull()) {
-			ReadConfigFile(config, config_path);
-			Migrate(config);
-		}
-
+	explicit GlobalInit(Path config_path)
+		:config(AutoLoadConfigFile(config_path)),
+		 input_plugins_init(config, io_thread.GetEventLoop())
+	{
 		io_thread.Start();
-
-#ifdef ENABLE_ARCHIVE
-		archive_plugin_init_all();
-#endif
-		input_stream_global_init(config,
-					 io_thread.GetEventLoop());
-	}
-
-	~GlobalInit() {
-		input_stream_global_finish();
-#ifdef ENABLE_ARCHIVE
-		archive_plugin_deinit_all();
-#endif
 	}
 };
 
@@ -236,7 +223,8 @@ try {
 
 	/* initialize MPD */
 
-	const GlobalInit init(c.config_path, c.verbose);
+	SetLogThreshold(c.verbose ? LogLevel::DEBUG : LogLevel::INFO);
+	const GlobalInit init(c.config_path);
 
 	if (c.scan)
 		return Scan(c.uri);

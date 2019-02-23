@@ -38,21 +38,17 @@
 class GlobalInit {
 	EventThread io_thread;
 
-public:
-	GlobalInit() {
-		io_thread.Start();
 #ifdef ENABLE_ARCHIVE
-		archive_plugin_init_all();
+	const ScopeArchivePluginsInit archive_plugins_init;
 #endif
-		input_stream_global_init(ConfigData(),
-					 io_thread.GetEventLoop());
-	}
 
-	~GlobalInit() {
-		input_stream_global_finish();
-#ifdef ENABLE_ARCHIVE
-		archive_plugin_deinit_all();
-#endif
+	const ScopeInputPluginsInit input_plugins_init;
+
+public:
+	GlobalInit()
+		:input_plugins_init(ConfigData(), io_thread.GetEventLoop())
+	{
+		io_thread.Start();
 	}
 };
 

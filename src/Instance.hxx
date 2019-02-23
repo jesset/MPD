@@ -41,7 +41,7 @@ class NeighborGlue;
 
 #ifdef ENABLE_DATABASE
 #include "db/DatabaseListener.hxx"
-class Database;
+#include "db/Ptr.hxx"
 class Storage;
 class UpdateService;
 #endif
@@ -104,7 +104,7 @@ struct Instance final
 #endif
 
 #ifdef ENABLE_DATABASE
-	Database *database;
+	DatabasePtr database;
 
 	/**
 	 * This is really a #CompositeStorage.  To avoid heavy include
@@ -147,7 +147,6 @@ struct Instance final
 	Partition *FindPartition(const char *name) noexcept;
 
 	void BeginShutdownPartitions() noexcept;
-	void FinishShutdownPartitions() noexcept;
 
 #ifdef ENABLE_DATABASE
 	/**
@@ -156,7 +155,7 @@ struct Instance final
 	 * music_directory was configured).
 	 */
 	Database *GetDatabase() {
-		return database;
+		return database.get();
 	}
 
 	/**
@@ -168,8 +167,6 @@ struct Instance final
 #endif
 
 	void BeginShutdownUpdate() noexcept;
-	void FinishShutdownUpdate() noexcept;
-	void ShutdownDatabase() noexcept;
 
 #ifdef ENABLE_CURL
 	void LookupRemoteTag(const char *uri) noexcept;

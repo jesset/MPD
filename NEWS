@@ -1,6 +1,24 @@
-ver 0.21.5 (not yet released)
+ver 0.21.6 (not yet released)
+
+ver 0.21.5 (2019/02/22)
+* protocol
+  - fix deadlock in "albumart" command
+  - fix "tagtypes disable" command
+* database
+  - simple: fix assertion failure
+  - fix assertion failures with mount points
+* storage
+  - udisks: fix "AlreadyMounted" error
+  - udisks: use relative path from mount URI
+  - fix memory leak
+* input
+  - buffer: fix crash bug when playing remote WAV file
 * tags
   - ape: map "Album Artist"
+* output
+  - shout: add support for TLS
+* mixer
+  - pulse: add "scale_volume" setting
 
 ver 0.21.4 (2019/01/04)
 * database

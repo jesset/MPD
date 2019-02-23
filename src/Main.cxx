@@ -185,19 +185,16 @@ InitStorage(const ConfigData &config, EventLoop &event_loop)
 static bool
 glue_db_init_and_load(const ConfigData &config)
 {
-	instance->database =
-		CreateConfiguredDatabase(config, instance->event_loop,
-					 instance->io_thread.GetEventLoop(),
-					 *instance);
-	if (instance->database == nullptr)
+	auto db = CreateConfiguredDatabase(config, instance->event_loop,
+					   instance->io_thread.GetEventLoop(),
+					   *instance);
+	if (!db)
 		return true;
 
-	if (instance->database->GetPlugin().RequireStorage()) {
+	if (db->GetPlugin().RequireStorage()) {
 		InitStorage(config, instance->io_thread.GetEventLoop());
 
 		if (instance->storage == nullptr) {
-			delete instance->database;
-			instance->database = nullptr;
 			LogDefault(config_domain,
 				   "Found database setting without "
 				   "music_directory - disabling database");
@@ -211,22 +208,24 @@ glue_db_init_and_load(const ConfigData &config)
 	}
 
 	try {
-		instance->database->Open();
+		db->Open();
 	} catch (...) {
 		std::throw_with_nested(std::runtime_error("Failed to open database plugin"));
 	}
 
-	auto *db = dynamic_cast<SimpleDatabase *>(instance->database);
-	if (db == nullptr)
+	instance->database = std::move(db);
+
+	auto *sdb = dynamic_cast<SimpleDatabase *>(instance->database.get());
+	if (sdb == nullptr)
 		return true;
 
 	instance->update = new UpdateService(config,
-					     instance->event_loop, *db,
+					     instance->event_loop, *sdb,
 					     static_cast<CompositeStorage &>(*instance->storage),
 					     *instance);
 
 	/* run database update after daemonization? */
-	return db->FileExists();
+	return sdb->FileExists();
 }
 
 static bool
@@ -352,39 +351,12 @@ Instance::BeginShutdownUpdate() noexcept
 }
 
 inline void
-Instance::FinishShutdownUpdate() noexcept
-{
-#ifdef ENABLE_DATABASE
-	delete update;
-#endif
-}
-
-inline void
-Instance::ShutdownDatabase() noexcept
-{
-#ifdef ENABLE_DATABASE
-	if (instance->database != nullptr) {
-		instance->database->Close();
-		delete instance->database;
-	}
-
-	delete instance->storage;
-#endif
-}
-
-inline void
 Instance::BeginShutdownPartitions() noexcept
 {
 	for (auto &partition : partitions) {
 		partition.pc.Kill();
 		partition.listener.reset();
 	}
-}
-
-inline void
-Instance::FinishShutdownPartitions() noexcept
-{
-	partitions.clear();
 }
 
 void
@@ -523,18 +495,19 @@ static int
 mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 {
 	ConfigureFS(raw_config);
+	AtScopeExit() { DeinitFS(); };
 
 	glue_mapper_init(raw_config);
 
 	initPermissions(raw_config);
 	spl_global_init(raw_config);
 #ifdef ENABLE_ARCHIVE
-	archive_plugin_init_all();
+	const ScopeArchivePluginsInit archive_plugins_init;
 #endif
 
 	pcm_convert_global_init(raw_config);
 
-	decoder_plugin_init_all(raw_config);
+	const ScopeDecoderPluginsInit decoder_plugins_init(raw_config);
 
 #ifdef ENABLE_DATABASE
 	const bool create_db = InitDatabaseAndStorage(raw_config);
@@ -553,9 +526,9 @@ mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 	}
 
 	client_manager_init(raw_config);
-	input_stream_global_init(raw_config,
-				 instance->io_thread.GetEventLoop());
-	playlist_list_global_init(raw_config);
+	const ScopeInputPluginsInit input_plugins_init(raw_config,
+						       instance->io_thread.GetEventLoop());
+	const ScopePlaylistPluginsInit playlist_plugins_init(raw_config);
 
 #ifdef ENABLE_DAEMON
 	daemonize_commit();
@@ -564,7 +537,7 @@ mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 #ifndef ANDROID
 	setup_log_output();
 
-	SignalHandlersInit(instance->event_loop);
+	const ScopeSignalHandlersInit signal_handlers_init(instance->event_loop);
 #endif
 
 	instance->io_thread.Start();
@@ -652,32 +625,8 @@ mpd_main_after_fork(const ConfigData &raw_config, const Config &config)
 	}
 #endif
 
-	instance->FinishShutdownUpdate();
-	instance->ShutdownDatabase();
-
 #ifdef ENABLE_SQLITE
 	sticker_global_finish();
-#endif
-
-	playlist_list_global_finish();
-	input_stream_global_finish();
-
-#ifdef ENABLE_DATABASE
-	mapper_finish();
-#endif
-
-	DeinitFS();
-
-	instance->FinishShutdownPartitions();
-	command_finish();
-	decoder_plugin_deinit_all();
-#ifdef ENABLE_ARCHIVE
-	archive_plugin_deinit_all();
-#endif
-	instance->rtio_thread.Stop();
-	instance->io_thread.Stop();
-#ifndef ANDROID
-	SignalHandlersFinish();
 #endif
 
 	return EXIT_SUCCESS;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -60,8 +60,7 @@ inline SimpleDatabase::SimpleDatabase(const ConfigBlock &block)
 #ifdef ENABLE_ZLIB
 	 compress(block.GetBlockValue("compress", true)),
 #endif
-	 cache_path(block.GetPath("cache_directory")),
-	 prefixed_light_song(nullptr)
+	 cache_path(block.GetPath("cache_directory"))
 {
 	if (path.IsNull())
 		throw std::runtime_error("No \"path\" parameter specified");
@@ -84,12 +83,12 @@ inline SimpleDatabase::SimpleDatabase(AllocatedPath &&_path,
 	 prefixed_light_song(nullptr) {
 }
 
-Database *
+DatabasePtr
 SimpleDatabase::Create(EventLoop &, EventLoop &,
 		       gcc_unused DatabaseListener &listener,
 		       const ConfigBlock &block)
 {
-	return new SimpleDatabase(block);
+	return std::make_unique<SimpleDatabase>(block);
 }
 
 void
@@ -219,6 +218,7 @@ SimpleDatabase::GetSong(const char *uri) const
 
 		prefixed_light_song =
 			new PrefixedLightSong(*song, r.directory->GetPath());
+		r.directory->mounted_database->ReturnSong(song);
 		return prefixed_light_song;
 	}
 
@@ -251,7 +251,7 @@ void
 SimpleDatabase::ReturnSong(gcc_unused const LightSong *song) const noexcept
 {
 	assert(song != nullptr);
-	assert(song == &light_song.Get() || song == prefixed_light_song);
+	assert(song == prefixed_light_song || song == &light_song.Get());
 
 	if (prefixed_light_song != nullptr) {
 		delete prefixed_light_song;
@@ -390,13 +390,13 @@ SimpleDatabase::Save()
 }
 
 void
-SimpleDatabase::Mount(const char *uri, Database *db)
+SimpleDatabase::Mount(const char *uri, DatabasePtr db)
 {
 #if !CLANG_CHECK_VERSION(3,6)
 	/* disabled on clang due to -Wtautological-pointer-compare */
 	assert(uri != nullptr);
-	assert(db != nullptr);
 #endif
+	assert(db != nullptr);
 	assert(*uri != 0);
 
 	ScopeDatabaseLock protect;
@@ -411,7 +411,7 @@ SimpleDatabase::Mount(const char *uri, Database *db)
 				    "Parent not found");
 
 	Directory *mnt = r.directory->CreateChild(r.uri);
-	mnt->mounted_database = db;
+	mnt->mounted_database = std::move(db);
 }
 
 static constexpr bool
@@ -441,27 +441,21 @@ SimpleDatabase::Mount(const char *local_uri, const char *storage_uri)
 #ifndef ENABLE_ZLIB
 	constexpr bool compress = false;
 #endif
-	auto db = new SimpleDatabase(cache_path / name_fs,
-				     compress);
-	try {
-		db->Open();
-	} catch (...) {
-		delete db;
-		throw;
-	}
+	auto db = std::make_unique<SimpleDatabase>(cache_path / name_fs,
+						   compress);
+	db->Open();
 
 	// TODO: update the new database instance?
 
 	try {
-		Mount(local_uri, db);
+		Mount(local_uri, std::move(db));
 	} catch (...) {
 		db->Close();
-		delete db;
 		throw;
 	}
 }
 
-inline Database *
+inline DatabasePtr
 SimpleDatabase::LockUmountSteal(const char *uri) noexcept
 {
 	ScopeDatabaseLock protect;
@@ -470,8 +464,7 @@ SimpleDatabase::LockUmountSteal(const char *uri) noexcept
 	if (r.uri != nullptr || !r.directory->IsMount())
 		return nullptr;
 
-	Database *db = r.directory->mounted_database;
-	r.directory->mounted_database = nullptr;
+	auto db = std::move(r.directory->mounted_database);
 	r.directory->Delete();
 
 	return db;
@@ -480,12 +473,11 @@ SimpleDatabase::LockUmountSteal(const char *uri) noexcept
 bool
 SimpleDatabase::Unmount(const char *uri) noexcept
 {
-	Database *db = LockUmountSteal(uri);
+	auto db = LockUmountSteal(uri);
 	if (db == nullptr)
 		return false;
 
 	db->Close();
-	delete db;
 	return true;
 }
 

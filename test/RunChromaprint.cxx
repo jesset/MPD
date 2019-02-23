@@ -17,9 +17,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config/File.hxx"
-#include "config/Migrate.hxx"
-#include "config/Data.hxx"
+#include "ConfigGlue.hxx"
 #include "tag/Chromaprint.hxx"
 #include "pcm/PcmConvert.hxx"
 #include "event/Thread.hxx"
@@ -90,30 +88,20 @@ ParseCommandLine(int argc, char **argv)
 }
 
 class GlobalInit {
-	ConfigData config;
+	const ConfigData config;
 	EventThread io_thread;
+	const ScopeInputPluginsInit input_plugins_init;
+	const ScopeDecoderPluginsInit decoder_plugins_init;
 
 public:
-	GlobalInit(Path config_path, bool verbose) {
-		SetLogThreshold(verbose ? LogLevel::DEBUG : LogLevel::INFO);
-
-		if (!config_path.IsNull()) {
-			ReadConfigFile(config, config_path);
-			Migrate(config);
-		}
-
+	explicit GlobalInit(Path config_path)
+		:config(AutoLoadConfigFile(config_path)),
+		 input_plugins_init(config, io_thread.GetEventLoop()),
+		 decoder_plugins_init(config)
+	{
 		io_thread.Start();
 
-		input_stream_global_init(config,
-					 io_thread.GetEventLoop());
-		decoder_plugin_init_all(config);
-
 		pcm_convert_global_init(config);
-	}
-
-	~GlobalInit() {
-		decoder_plugin_deinit_all();
-		input_stream_global_finish();
 	}
 };
 
@@ -245,7 +233,8 @@ int main(int argc, char **argv)
 try {
 	const auto c = ParseCommandLine(argc, argv);
 
-	const GlobalInit init(c.config_path, c.verbose);
+	SetLogThreshold(c.verbose ? LogLevel::DEBUG : LogLevel::INFO);
+	const GlobalInit init(c.config_path);
 
 	const DecoderPlugin *plugin = decoder_plugin_from_name(c.decoder);
 	if (plugin == nullptr) {

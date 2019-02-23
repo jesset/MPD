@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2019 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2012-2019 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,74 +27,48 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef BUFFERED_OUTPUT_STREAM_HXX
-#define BUFFERED_OUTPUT_STREAM_HXX
+#include "net/AllocatedSocketAddress.hxx"
+#include "net/ToString.hxx"
 
-#include "util/Compiler.h"
-#include "util/DynamicFifoBuffer.hxx"
+#include <gtest/gtest.h>
 
-#include <stddef.h>
+#include <sys/un.h>
 
-#ifdef _UNICODE
-#include <wchar.h>
-#endif
-
-class OutputStream;
-
-/**
- * An #OutputStream wrapper that buffers its output to reduce the
- * number of OutputStream::Write() calls.
- *
- * All wchar_t based strings are converted to UTF-8.
- */
-class BufferedOutputStream {
-	OutputStream &os;
-
-	DynamicFifoBuffer<char> buffer;
-
-public:
-	explicit BufferedOutputStream(OutputStream &_os)
-		:os(_os), buffer(32768) {}
-
-	void Write(const void *data, size_t size);
-
-	void Write(const char &ch) {
-		Write(&ch, sizeof(ch));
-	}
-
-	void Write(const char *p);
-
-	gcc_printf(2,3)
-	void Format(const char *fmt, ...);
-
-#ifdef _UNICODE
-	void Write(const wchar_t &ch) {
-		WriteWideToUTF8(&ch, 1);
-	}
-
-	void Write(const wchar_t *p);
-#endif
-
-	/**
-	 * Write buffer contents to the #OutputStream.
-	 */
-	void Flush();
-
-private:
-	bool AppendToBuffer(const void *data, size_t size) noexcept;
-
-#ifdef _UNICODE
-	void WriteWideToUTF8(const wchar_t *p, size_t length);
-#endif
-};
-
-template<typename F>
-void
-WithBufferedOutputStream(OutputStream &os, F &&f)
+TEST(LocalSocketAddress, Path)
 {
-	BufferedOutputStream bos(os);
-	f(bos);
-	bos.Flush();
+	const char *path = "/run/foo/bar.socket";
+	AllocatedSocketAddress a;
+	a.SetLocal(path);
+	EXPECT_FALSE(a.IsNull());
+	EXPECT_TRUE(a.IsDefined());
+	EXPECT_EQ(a.GetFamily(), AF_LOCAL);
+	EXPECT_EQ(ToString(a), path);
+
+	const auto &sun = *(const struct sockaddr_un *)a.GetAddress();
+	EXPECT_STREQ(sun.sun_path, path);
+	EXPECT_EQ(sun.sun_path + strlen(path) + 1, (const char *)a.GetAddress() + a.GetSize());
+}
+
+#ifdef __linux__
+
+TEST(LocalSocketAddress, Abstract)
+{
+	const char *path = "@foo.bar";
+	AllocatedSocketAddress a;
+	a.SetLocal(path);
+	EXPECT_FALSE(a.IsNull());
+	EXPECT_TRUE(a.IsDefined());
+	EXPECT_EQ(a.GetFamily(), AF_LOCAL);
+	EXPECT_EQ(ToString(a), path);
+
+	const auto &sun = *(const struct sockaddr_un *)a.GetAddress();
+
+	/* Linux's abstract sockets start with a null byte, ... */
+	EXPECT_EQ(sun.sun_path[0], 0);
+
+	/* ... but are not null-terminated */
+	EXPECT_EQ(memcmp(sun.sun_path + 1, path + 1, strlen(path) - 1), 0);
+	EXPECT_EQ(sun.sun_path + strlen(path), (const char *)a.GetAddress() + a.GetSize());
 }
 
 #endif

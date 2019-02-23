@@ -18,11 +18,11 @@
  */
 
 #include "VHelper.hxx"
-#include "song/DetachedSong.hxx"
 #include "song/LightSong.hxx"
 #include "song/Filter.hxx"
 
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 DatabaseVisitorHelper::DatabaseVisitorHelper(const DatabaseSelection &_selection,
