@@ -144,15 +144,20 @@ syntax::
 ``EXPRESSION`` is a string enclosed in parantheses which can be one
 of:
 
-- ``(TAG == 'VALUE')``: match a tag value.
-  ``(TAG != 'VALUE')``: mismatch a tag value.
-  The special tag "*any*" checks all
-  tag values.
-  *albumartist* looks for
+- ``(TAG == 'VALUE')``: match a tag value; if there are multiple
+  values of the given type, at least one must match.
+  ``(TAG != 'VALUE')``: mismatch a tag value; if there are multiple
+  values of the given type, none of them must match.
+  The special tag ``any`` checks all
+  tag types.
+  ``AlbumArtist`` looks for
   ``VALUE`` in ``AlbumArtist``
   and falls back to ``Artist`` tags if
   ``AlbumArtist`` does not exist.
   ``VALUE`` is what to find.
+  An empty value string means: match only if the given tag type does
+  not exist at all; this implies that negation with an empty value
+  checks for the existence of the given tag type.
 
 - ``(TAG contains 'VALUE')`` checks if the given value is a substring
   of the tag value.
@@ -178,7 +183,7 @@ of:
 
 - ``(AudioFormat =~ 'SAMPLERATE:BITS:CHANNELS')``:
   matches the audio format with the given mask (i.e. one
-  or more attributes may be "*").
+  or more attributes may be ``*``).
 
 - ``(!EXPRESSION)``: negate an expression.  Note that each expression
   must be enclosed in parantheses, e.g. :code:`(!(artist == 'VALUE'))`
@@ -207,11 +212,11 @@ backslash.
 
 Example expression which matches an artist named ``foo'bar"``::
 
- (artist "foo\'bar\"")
+ (Artist == "foo\'bar\"")
 
 At the protocol level, the command must look like this::
 
- find "(artist \"foo\\'bar\\\"\")"
+ find "(Artist == \"foo\\'bar\\\"\")"
 
 The double quotes enclosing the artist name must be escaped because
 they are inside a double-quoted ``find`` parameter.  The single quote
@@ -714,7 +719,9 @@ and without the `.m3u` suffix).
 Some of the commands described in this section can be used to
 run playlist plugins instead of the hard-coded simple
 `m3u` parser.  They can access playlists in
-the music directory (relative path including the suffix) or
+the music directory (relative path including the suffix),
+playlists in arbitrary location (absolute path including the suffix;
+allowed only for clients that are connected via local socket), or
 remote playlists (absolute URI with a supported scheme).
 
 :command:`listplaylist {NAME}`
@@ -842,7 +849,7 @@ The music database
 
 .. _command_findadd:
 
-:command:`findadd {FILTER}`
+:command:`findadd {FILTER} [sort {TYPE}] [window {START:END}]`
     Search the database for songs matching
     ``FILTER`` (see :ref:`Filters <filter_syntax>`) and add them to
     the queue.  Parameters have the same meaning as for
@@ -924,7 +931,7 @@ The music database
     This command may be used to list metadata of remote
     files (e.g. URI beginning with "http://" or "smb://").
 
-    Clients that are connected via UNIX domain socket may
+    Clients that are connected via local socket may
     use this command to read the tags of an arbitrary local
     file (URI is an absolute path).
 
@@ -954,14 +961,14 @@ The music database
 
 .. _command_searchadd:
 
-:command:`searchadd {FILTER}`
+:command:`searchadd {FILTER} [sort {TYPE}] [window {START:END}]`
     Search the database for songs matching
     ``FILTER`` (see :ref:`Filters <filter_syntax>`) and add them to
     the queue.
 
     Parameters have the same meaning as for :ref:`search <command_search>`.
 
-:command:`searchaddpl {NAME} {FILTER}`
+:command:`searchaddpl {NAME} {FILTER} [sort {TYPE}] [window {START:END}]`
     Search the database for songs matching
     ``FILTER`` (see :ref:`Filters <filter_syntax>`) and add them to
     the playlist named ``NAME``.
@@ -1215,7 +1222,7 @@ Reflection
 :command:`config`
     Dumps configuration values that may be interesting for
     the client.  This command is only permitted to "local"
-    clients (connected via UNIX domain socket).
+    clients (connected via local socket).
 
     The following response attributes are available:
 

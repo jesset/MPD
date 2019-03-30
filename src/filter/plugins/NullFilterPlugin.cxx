@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,22 +24,12 @@
  * plugins.
  */
 
+#include "NullFilterPlugin.hxx"
 #include "filter/FilterPlugin.hxx"
-#include "filter/Filter.hxx"
+#include "filter/NullFilter.hxx"
 #include "filter/Prepared.hxx"
-#include "filter/FilterRegistry.hxx"
 #include "AudioFormat.hxx"
 #include "util/Compiler.h"
-#include "util/ConstBuffer.hxx"
-
-class NullFilter final : public Filter {
-public:
-	explicit NullFilter(const AudioFormat &af):Filter(af) {}
-
-	virtual ConstBuffer<void> FilterPCM(ConstBuffer<void> src) override {
-		return src;
-	}
-};
 
 class PreparedNullFilter final : public PreparedFilter {
 public:

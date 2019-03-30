@@ -29,6 +29,8 @@ ServerSocketAddGeneric(ServerSocket &server_socket, const char *address, unsigne
 		server_socket.AddPort(port);
 	} else if (address[0] == '/' || address[0] == '~') {
 		server_socket.AddPath(ParsePath(address));
+	} else if (address[0] == '@') {
+		server_socket.AddAbstract(address);
 	} else {
 		server_socket.AddHost(address, port);
 	}

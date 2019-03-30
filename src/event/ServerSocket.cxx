@@ -392,7 +392,29 @@ ServerSocket::AddPath(AllocatedPath &&path)
 #else /* !HAVE_UN */
 	(void)path;
 
-	throw std::runtime_error("UNIX domain socket support is disabled");
+	throw std::runtime_error("Local socket support is disabled");
 #endif /* !HAVE_UN */
 }
 
+
+void
+ServerSocket::AddAbstract(const char *name)
+{
+#if !defined(__linux__)
+	(void)name;
+
+	throw std::runtime_error("Abstract sockets are only available on Linux");
+#elif !defined(HAVE_UN)
+	(void)name;
+
+	throw std::runtime_error("Local socket support is disabled");
+#else
+	assert(name != nullptr);
+	assert(*name == '@');
+
+	AllocatedSocketAddress address;
+	address.SetLocal(name);
+
+	AddAddress(std::move(address));
+#endif
+}

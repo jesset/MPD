@@ -27,7 +27,7 @@
 #include "thread/Cond.hxx"
 #include "util/Macros.hxx"
 #include "util/Domain.hxx"
-#include "system/ByteOrder.hxx"
+#include "util/ByteOrder.hxx"
 #include "Log.hxx"
 
 #include <SLES/OpenSLES.h>
@@ -229,6 +229,14 @@ SlesOutput::Open(AudioFormat &audio_format)
 						    SL_ANDROID_KEY_STREAM_TYPE,
 						    &stream_type,
 						    sizeof(stream_type));
+
+		/* MPD doesn't care much about latency, so let's
+		   configure power saving mode */
+		SLuint32 performance_mode = SL_ANDROID_PERFORMANCE_POWER_SAVING;
+		(*android_config)->SetConfiguration(android_config,
+						    SL_ANDROID_KEY_PERFORMANCE_MODE,
+						    &performance_mode,
+						    sizeof(performance_mode));
 	}
 
 	result = play_object.Realize(false);

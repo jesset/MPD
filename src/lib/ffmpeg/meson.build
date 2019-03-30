@@ -4,9 +4,22 @@ libavutil_dep = dependency('libavutil', version: '>= 55.27', required: get_optio
 
 enable_ffmpeg = libavformat_dep.found() and libavcodec_dep.found() and libavutil_dep.found()
 conf.set('ENABLE_FFMPEG', enable_ffmpeg)
+
+if enable_ffmpeg
+  libavfilter_dep = dependency('libavfilter', required: false)
+else
+  libavfilter_dep = dependency('', required: false)
+endif
+conf.set('HAVE_LIBAVFILTER', libavfilter_dep.found())
+
 if not enable_ffmpeg
   ffmpeg_dep = dependency('', required: false)
   subdir_done()
+endif
+
+ffmpeg_sources = []
+if libavfilter_dep.found()
+  ffmpeg_sources += 'Filter.cxx'
 endif
 
 ffmpeg = static_library(
@@ -16,10 +29,12 @@ ffmpeg = static_library(
   'LogCallback.cxx',
   'Error.cxx',
   'Domain.cxx',
+  ffmpeg_sources,
   include_directories: inc,
   dependencies: [
     libavformat_dep,
     libavcodec_dep,
+    libavfilter_dep,
     libavutil_dep,
   ],
 )
@@ -29,6 +44,7 @@ ffmpeg_dep = declare_dependency(
   dependencies: [
     libavformat_dep,
     libavcodec_dep,
+    libavfilter_dep,
     libavutil_dep,
   ],
 )

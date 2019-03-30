@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,7 +22,6 @@
 #include "filter/FilterPlugin.hxx"
 #include "filter/Filter.hxx"
 #include "filter/Prepared.hxx"
-#include "filter/FilterRegistry.hxx"
 #include "AudioFormat.hxx"
 #include "util/ConstBuffer.hxx"
 
@@ -56,6 +55,7 @@ public:
 	}
 
 	ConstBuffer<void> FilterPCM(ConstBuffer<void> src) override;
+	ConstBuffer<void> Flush() override;
 };
 
 class PreparedAutoConvertFilter final : public PreparedFilter {
@@ -102,6 +102,18 @@ AutoConvertFilter::FilterPCM(ConstBuffer<void> src)
 		src = convert->FilterPCM(src);
 
 	return filter->FilterPCM(src);
+}
+
+ConstBuffer<void>
+AutoConvertFilter::Flush()
+{
+	if (convert != nullptr) {
+		auto result = convert->Flush();
+		if (!result.IsNull())
+			return filter->FilterPCM(result);
+	}
+
+	return filter->Flush();
 }
 
 std::unique_ptr<PreparedFilter>

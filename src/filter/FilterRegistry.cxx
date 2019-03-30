@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,6 +19,12 @@
 
 #include "FilterRegistry.hxx"
 #include "FilterPlugin.hxx"
+#include "plugins/NullFilterPlugin.hxx"
+#include "plugins/RouteFilterPlugin.hxx"
+#include "plugins/NormalizeFilterPlugin.hxx"
+#include "plugins/FfmpegFilterPlugin.hxx"
+#include "plugins/HdcdFilterPlugin.hxx"
+#include "config.h"
 
 #include <string.h>
 
@@ -26,6 +32,10 @@ static const FilterPlugin *const filter_plugins[] = {
 	&null_filter_plugin,
 	&route_filter_plugin,
 	&normalize_filter_plugin,
+#ifdef HAVE_LIBAVFILTER
+	&ffmpeg_filter_plugin,
+	&hdcd_filter_plugin,
+#endif
 	nullptr,
 };
 

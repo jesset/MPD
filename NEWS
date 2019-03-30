@@ -1,4 +1,39 @@
-ver 0.21.6 (not yet released)
+ver 0.22 (not yet released)
+* protocol
+  - "findadd"/"searchadd"/"searchaddpl" support the "sort" and
+    "window" parameters
+* input
+  - ffmpeg: allow partial reads
+* filter
+  - ffmpeg: new plugin based on FFmpeg's libavfilter library
+  - hdcd: new plugin based on FFmpeg's "af_hdcd" for HDCD playback
+
+ver 0.21.7 (not yet released)
+* require Meson 0.49.0 for native libgcrypt-config support
+* fix build failure with -Dlocal_socket=false
+
+ver 0.21.6 (2019/03/17)
+* protocol
+  - allow loading playlists specified as absolute filesystem paths
+  - fix negated filter expressions with multiple tag values
+  - fix "list" with filter expression
+  - omit empty playlist names in "listplaylists"
+* input
+  - cdio_paranoia: fix build failure due to missing #include
+* decoder
+  - opus: fix replay gain when there are no other tags
+  - opus: fix seeking to beginning of song
+  - vorbis: fix Tremor conflict resulting in crash
+* output
+  - pulse: work around error with unusual channel count
+  - osx: fix build failure
+* playlist
+  - flac: fix use-after-free bug
+* support abstract sockets on Linux
+* Windows
+  - remove the unused libwinpthread-1.dll dependency
+* Android
+  - enable SLES power saving mode
 
 ver 0.21.5 (2019/02/22)
 * protocol
