@@ -17,27 +17,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "StickerPrint.hxx"
-#include "StickerDatabase.hxx"
-#include "client/Response.hxx"
+#include "Client.hxx"
+#include "Log.hxx"
 
 void
-sticker_print_value(Response &r,
-		    const char *name, const char *value)
+Client::OnSocketError(std::exception_ptr ep) noexcept
 {
-	r.Format("sticker: %s=%s\n", name, value);
-}
+	FormatError(ep, "error on client %d", num);
 
-static void
-print_sticker_cb(const char *name, const char *value, void *data)
-{
-	auto &r = *(Response *)data;
-
-	sticker_print_value(r, name, value);
+	Close();
 }
 
 void
-sticker_print(Response &r, const Sticker &sticker)
+Client::OnSocketClosed() noexcept
 {
-	sticker_foreach(sticker, print_sticker_cb, &r);
+	Close();
 }

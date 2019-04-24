@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,7 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "StickerDatabase.hxx"
+#include "Database.hxx"
+#include "Sticker.hxx"
 #include "lib/sqlite/Util.hxx"
 #include "fs/Path.hxx"
 #include "Idle.hxx"
@@ -25,14 +26,7 @@
 #include "util/StringCompare.hxx"
 #include "util/ScopeExit.hxx"
 
-#include <string>
-#include <map>
-
 #include <assert.h>
-
-struct Sticker {
-	std::map<std::string, std::string> table;
-};
 
 enum sticker_sql {
 	STICKER_SQL_GET,
@@ -134,7 +128,7 @@ sticker_global_init(Path path)
 }
 
 void
-sticker_global_finish()
+sticker_global_finish() noexcept
 {
 	if (sticker_db == nullptr)
 		/* not configured */
@@ -320,44 +314,14 @@ sticker_delete_value(const char *type, const char *uri, const char *name)
 	return modified;
 }
 
-void
-sticker_free(Sticker *sticker)
-{
-	delete sticker;
-}
-
-const char *
-sticker_get_value(const Sticker &sticker, const char *name) noexcept
-{
-	auto i = sticker.table.find(name);
-	if (i == sticker.table.end())
-		return nullptr;
-
-	return i->second.c_str();
-}
-
-void
-sticker_foreach(const Sticker &sticker,
-		void (*func)(const char *name, const char *value,
-			     void *user_data),
-		void *user_data)
-{
-	for (const auto &i : sticker.table)
-		func(i.first.c_str(), i.second.c_str(), user_data);
-}
-
-Sticker *
+Sticker
 sticker_load(const char *type, const char *uri)
 {
 	Sticker s;
 
 	sticker_list_values(s.table, type, uri);
 
-	if (s.table.empty())
-		/* don't return empty sticker objects */
-		return nullptr;
-
-	return new Sticker(std::move(s));
+	return s;
 }
 
 static sqlite3_stmt *

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,23 +17,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "config.h"
-#include "ClientInternal.hxx"
-#include "ClientList.hxx"
+#include "Client.hxx"
+#include "Config.hxx"
+#include "Domain.hxx"
+#include "List.hxx"
+#include "BackgroundCommand.hxx"
 #include "Partition.hxx"
 #include "Instance.hxx"
 #include "net/UniqueSocketDescriptor.hxx"
 #include "net/SocketAddress.hxx"
 #include "net/ToString.hxx"
-#include "Permission.hxx"
 #include "Log.hxx"
 
 #include <assert.h>
-#ifdef _WIN32
-#include <winsock2.h>
-#else
-#include <sys/socket.h>
-#endif
 
 static constexpr char GREETING[] = "OK MPD " PROTOCOL_VERSION "\n";
 
@@ -70,14 +66,15 @@ client_new(EventLoop &loop, Partition &partition,
 
 	(void)fd.Write(GREETING, sizeof(GREETING) - 1);
 
+	const unsigned num = next_client_num++;
 	Client *client = new Client(loop, partition, std::move(fd), uid,
 				    permission,
-				    next_client_num++);
+				    num);
 
 	client_list.Add(*client);
 
 	FormatInfo(client_domain, "[%u] opened from %s",
-		   client->num, remote.c_str());
+		   num, remote.c_str());
 }
 
 void
@@ -85,7 +82,7 @@ Client::Close() noexcept
 {
 	partition->instance.client_list->Remove(*this);
 
-	SetExpired();
+	FullyBufferedSocket::Close();
 
 	FormatInfo(client_domain, "[%u] closed", num);
 	delete this;

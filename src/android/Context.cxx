@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,11 +19,12 @@
 
 #include "Context.hxx"
 #include "java/Class.hxx"
+#include "java/Exception.hxx"
 #include "java/File.hxx"
 #include "fs/AllocatedPath.hxx"
 
 AllocatedPath
-Context::GetCacheDir(JNIEnv *env) const
+Context::GetCacheDir(JNIEnv *env) const noexcept
 {
 	assert(env != nullptr);
 
@@ -33,10 +34,8 @@ Context::GetCacheDir(JNIEnv *env) const
 	assert(method);
 
 	jobject file = env->CallObjectMethod(Get(), method);
-	if (file == nullptr) {
-		env->ExceptionClear();
+	if (Java::DiscardException(env) || file == nullptr)
 		return nullptr;
-	}
 
 	return Java::File::ToAbsolutePath(env, file);
 }

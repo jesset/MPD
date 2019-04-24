@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,8 @@
 #ifndef MPD_CLIENT_H
 #define MPD_CLIENT_H
 
-#include "ClientMessage.hxx"
+#include "Message.hxx"
+#include "command/CommandResult.hxx"
 #include "command/CommandListBuilder.hxx"
 #include "tag/Mask.hxx"
 #include "event/FullyBufferedSocket.hxx"
@@ -33,10 +34,10 @@
 #include <set>
 #include <string>
 #include <list>
+#include <memory>
 
 #include <stddef.h>
 
-struct ConfigData;
 class SocketAddress;
 class UniqueSocketDescriptor;
 class EventLoop;
@@ -47,6 +48,7 @@ class PlayerControl;
 struct playlist;
 class Database;
 class Storage;
+class BackgroundCommand;
 
 class Client final
 	: FullyBufferedSocket,
@@ -55,7 +57,6 @@ class Client final
 
 	Partition *partition;
 
-public:
 	unsigned permission;
 
 	/** the uid of the client process, or -1 if unknown */
@@ -75,10 +76,15 @@ public:
 	/** idle flags that the client wants to receive */
 	unsigned idle_subscriptions;
 
+public:
+	// TODO: make this attribute "private"
 	/**
 	 * The tags this client is interested in.
 	 */
 	TagMask tag_mask = TagMask::All();
+
+private:
+	static constexpr size_t MAX_SUBSCRIPTIONS = 16;
 
 	/**
 	 * A list of channel names this client is subscribed to.
@@ -91,39 +97,39 @@ public:
 	 */
 	unsigned num_subscriptions = 0;
 
+	static constexpr size_t MAX_MESSAGES = 64;
+
 	/**
 	 * A list of messages this client has received.
 	 */
 	std::list<ClientMessage> messages;
 
+	/**
+	 * The command currently running in background.  If this is
+	 * set, then the client is occupied and will not process any
+	 * new input.  If the connection gets closed, the
+	 * #BackgroundCommand will be cancelled.
+	 */
+	std::unique_ptr<BackgroundCommand> background_command;
+
+public:
 	Client(EventLoop &loop, Partition &partition,
 	       UniqueSocketDescriptor fd, int uid,
 	       unsigned _permission,
 	       int num) noexcept;
 
-	~Client() noexcept {
-		if (FullyBufferedSocket::IsDefined())
-			FullyBufferedSocket::Close();
-	}
+	~Client() noexcept;
 
-	bool IsConnected() const noexcept {
-		return FullyBufferedSocket::IsDefined();
-	}
-
-	gcc_pure
-	bool IsExpired() const noexcept {
-		return !FullyBufferedSocket::IsDefined();
-	}
+	using FullyBufferedSocket::GetEventLoop;
 
 	void Close() noexcept;
-	void SetExpired() noexcept;
 
-	bool Write(const void *data, size_t length);
+	using FullyBufferedSocket::Write;
 
 	/**
 	 * Write a null-terminated string.
 	 */
-	bool Write(const char *data);
+	bool Write(const char *data) noexcept;
 
 	/**
 	 * returns the uid of the client process, or a negative value
@@ -156,6 +162,19 @@ public:
 	void IdleAdd(unsigned flags) noexcept;
 	bool IdleWait(unsigned flags) noexcept;
 
+	/**
+	 * Called by a command handler to defer execution to a
+	 * #BackgroundCommand.
+	 */
+	void SetBackgroundCommand(std::unique_ptr<BackgroundCommand> _bc) noexcept;
+
+	/**
+	 * Called by the current #BackgroundCommand when it has
+	 * finished, after sending the response.  This method then
+	 * deletes the #BackgroundCommand.
+	 */
+	void OnBackgroundCommandFinished() noexcept;
+
 	enum class SubscribeResult {
 		/** success */
 		OK,
@@ -175,10 +194,22 @@ public:
 		return subscriptions.find(channel_name) != subscriptions.end();
 	}
 
+	const auto &GetSubscriptions() const noexcept {
+		return subscriptions;
+	}
+
 	SubscribeResult Subscribe(const char *channel) noexcept;
 	bool Unsubscribe(const char *channel) noexcept;
 	void UnsubscribeAll() noexcept;
 	bool PushMessage(const ClientMessage &msg) noexcept;
+
+	template<typename F>
+	void ConsumeMessages(F &&f) {
+		while (!messages.empty()) {
+			f(messages.front());
+			messages.pop_front();
+		}
+	}
 
 	/**
 	 * Is this client allowed to use the specified local file?
@@ -227,6 +258,11 @@ public:
 	const Storage *GetStorage() const noexcept;
 
 private:
+	CommandResult ProcessCommandList(bool list_ok,
+					 std::list<std::string> &&list) noexcept;
+
+	CommandResult ProcessLine(char *line) noexcept;
+
 	/* virtual methods from class BufferedSocket */
 	InputResult OnSocketInput(void *data, size_t length) noexcept override;
 	void OnSocketError(std::exception_ptr ep) noexcept override;
@@ -235,9 +271,6 @@ private:
 	/* callback for TimerEvent */
 	void OnTimeout() noexcept;
 };
-
-void
-client_manager_init(const ConfigData &config);
 
 void
 client_new(EventLoop &loop, Partition &partition,

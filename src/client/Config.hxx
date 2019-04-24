@@ -17,24 +17,18 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef MPD_CLIENT_INTERNAL_HXX
-#define MPD_CLIENT_INTERNAL_HXX
-
-#include "Client.hxx"
-#include "command/CommandResult.hxx"
+#ifndef MPD_CLIENT_CONFIG_HXX
+#define MPD_CLIENT_CONFIG_HXX
 
 #include <chrono>
 
-static constexpr unsigned CLIENT_MAX_SUBSCRIPTIONS = 16;
-static constexpr unsigned CLIENT_MAX_MESSAGES = 64;
-
-extern const class Domain client_domain;
+struct ConfigData;
 
 extern std::chrono::steady_clock::duration client_timeout;
 extern size_t client_max_command_list_size;
 extern size_t client_max_output_buffer_size;
 
-CommandResult
-client_process_line(Client &client, char *line);
+void
+client_manager_init(const ConfigData &config);
 
 #endif

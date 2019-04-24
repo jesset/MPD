@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,31 +17,9 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "ClientList.hxx"
-#include "ClientInternal.hxx"
-#include "util/DeleteDisposer.hxx"
+#ifndef MPD_CLIENT_DOMAIN_HXX
+#define MPD_CLIENT_DOMAIN_HXX
 
-#include <assert.h>
+extern const class Domain client_domain;
 
-void
-ClientList::Remove(Client &client)
-{
-	assert(!list.empty());
-
-	list.erase(list.iterator_to(client));
-}
-
-void
-ClientList::CloseAll()
-{
-	list.clear_and_dispose(DeleteDisposer());
-}
-
-void
-ClientList::IdleAdd(unsigned flags)
-{
-	assert(flags != 0);
-
-	for (auto &client : list)
-		client.IdleAdd(flags);
-}
+#endif

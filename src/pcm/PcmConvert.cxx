@@ -29,45 +29,30 @@ pcm_convert_global_init(const ConfigData &config)
 	pcm_resampler_global_init(config);
 }
 
-PcmConvert::PcmConvert() noexcept
+PcmConvert::PcmConvert(const AudioFormat _src_format,
+		       const AudioFormat dest_format)
+	:src_format(_src_format)
 {
-#ifndef NDEBUG
-	src_format.Clear();
-	dest_format.Clear();
-#endif
-}
-
-PcmConvert::~PcmConvert() noexcept
-{
-	assert(!src_format.IsValid());
-	assert(!dest_format.IsValid());
-}
-
-void
-PcmConvert::Open(const AudioFormat _src_format, const AudioFormat _dest_format)
-{
-	assert(!src_format.IsValid());
-	assert(!dest_format.IsValid());
-	assert(_src_format.IsValid());
-	assert(_dest_format.IsValid());
+	assert(src_format.IsValid());
+	assert(dest_format.IsValid());
 
 	AudioFormat format = _src_format;
 	if (format.format == SampleFormat::DSD)
 		format.format = SampleFormat::FLOAT;
 
-	enable_resampler = format.sample_rate != _dest_format.sample_rate;
+	enable_resampler = format.sample_rate != dest_format.sample_rate;
 	if (enable_resampler) {
-		resampler.Open(format, _dest_format.sample_rate);
+		resampler.Open(format, dest_format.sample_rate);
 
 		format.format = resampler.GetOutputSampleFormat();
-		format.sample_rate = _dest_format.sample_rate;
+		format.sample_rate = dest_format.sample_rate;
 	}
 
-	enable_format = format.format != _dest_format.format;
+	enable_format = format.format != dest_format.format;
 	if (enable_format) {
 		try {
 			format_converter.Open(format.format,
-					      _dest_format.format);
+					      dest_format.format);
 		} catch (...) {
 			if (enable_resampler)
 				resampler.Close();
@@ -75,13 +60,13 @@ PcmConvert::Open(const AudioFormat _src_format, const AudioFormat _dest_format)
 		}
 	}
 
-	format.format = _dest_format.format;
+	format.format = dest_format.format;
 
-	enable_channels = format.channels != _dest_format.channels;
+	enable_channels = format.channels != dest_format.channels;
 	if (enable_channels) {
 		try {
 			channels_converter.Open(format.format, format.channels,
-						_dest_format.channels);
+						dest_format.channels);
 		} catch (...) {
 			if (enable_format)
 				format_converter.Close();
@@ -90,13 +75,9 @@ PcmConvert::Open(const AudioFormat _src_format, const AudioFormat _dest_format)
 			throw;
 		}
 	}
-
-	src_format = _src_format;
-	dest_format = _dest_format;
 }
 
-void
-PcmConvert::Close() noexcept
+PcmConvert::~PcmConvert() noexcept
 {
 	if (enable_channels)
 		channels_converter.Close();
@@ -107,11 +88,6 @@ PcmConvert::Close() noexcept
 
 #ifdef ENABLE_DSD
 	dsd.Reset();
-#endif
-
-#ifndef NDEBUG
-	src_format.Clear();
-	dest_format.Clear();
 #endif
 }
 

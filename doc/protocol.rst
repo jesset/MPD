@@ -414,9 +414,10 @@ Querying :program:`MPD`'s status
     - ``songid``: playlist songid of the current song stopped on or playing
     - ``nextsong`` [#since_0_15]_: playlist song number of the next song to be played
     - ``nextsongid`` [#since_0_15]_: playlist songid of the next song to be played
-    - ``time``: total time elapsed (of current playing/paused song)
+    - ``time``: total time elapsed (of current playing/paused song) in seconds
       (deprecated, use ``elapsed`` instead)
-    - ``elapsed`` [#since_0_16]_: Total time elapsed within the current song, but with higher resolution.
+    - ``elapsed`` [#since_0_16]_: Total time elapsed within the
+      current song in seconds, but with higher resolution.
     - ``duration`` [#since_0_20]_: Duration of the current song in seconds.
     - ``bitrate``: instantaneous bitrate in kbps
     - ``xfade``: ``crossfade`` in seconds
@@ -437,7 +438,7 @@ Querying :program:`MPD`'s status
     - ``albums``: number of albums
     - ``songs``: number of songs
     - ``uptime``: daemon uptime in seconds
-    - ``db_playtime``: sum of all song times in the db
+    - ``db_playtime``: sum of all song times in the database in seconds
     - ``db_update``: last db update in UNIX time
     - ``playtime``: time length of music played
 
@@ -599,7 +600,7 @@ Whenever possible, ids should be used.
     Deletes the song ``SONGID`` from the
     playlist
 
-:command:`move {FROM} [{START:END} | {TO}]`
+:command:`move [{FROM} | {START:END}] {TO}`
     Moves the song at ``FROM`` or range of songs
     at ``START:END`` [#since_0_15]_ to ``TO``
     in the playlist.
@@ -782,11 +783,12 @@ The music database
 ==================
 
 :command:`albumart {URI} {OFFSET}`
-    Searches the directory the file ``URI``
-    resides in and attempts to return a chunk of an album
+    Locate album art for the given song and return a chunk of an album
     art image file at offset ``OFFSET``.
-    Uses the filename "cover" with any of ".png, .jpg,
-    .tiff, .bmp".
+
+    This is currently implemented by searching the directory the file
+    resides in for a file called :file:`cover.png`, :file:`cover.jpg`,
+    :file:`cover.tiff` or :file:`cover.bmp`.
 
     Returns the file size and actual number
     of bytes read at the requested offset, followed
@@ -795,7 +797,7 @@ The music database
 
     Example::
 
-     albumart
+     albumart foo/bar.ogg 0
      size: 1024768
      binary: 8192
      <8192 bytes>
@@ -822,6 +824,17 @@ The music database
     A group with an empty value contains counts of matching song which
     don't this group tag.  It exists only if at least one such song is
     found.
+
+:command:`getfingerprint {URI}`
+
+    Calculate the song's audio fingerprint.  Example (abbreviated fingerprint)::
+
+      getfingerprint "foo/bar.ogg"
+      chromaprint: AQACcEmSREmWJJmkIT_6CCf64...
+      OK
+
+    This command is only available if MPD was built with
+    :file:`libchromaprint` (``-Dchromaprint=enabled``).
 
 .. _command_find:
 
@@ -860,8 +873,7 @@ The music database
 :command:`list {TYPE} {FILTER} [group {GROUPTYPE}]`
     Lists unique tags values of the specified type.
     ``TYPE`` can be any tag supported by
-    :program:`MPD` or
-    *file*.
+    :program:`MPD`.
 
     Additional arguments may specify a :ref:`filter <filter_syntax>`.
     The *group* keyword may be used
@@ -871,6 +883,10 @@ The music database
     grouped by their respective (album) artist::
 
      list album group albumartist
+
+    ``list file`` was implemented in an early :program:`MPD` version,
+    but does not appear to make a lot of sense.  It still works (to
+    avoid breaking compatibility), but is deprecated.
 
 .. _command_listall:
 
@@ -1053,7 +1069,8 @@ Stickers
 "Stickers" [#since_0_15]_ are pieces of
 information attached to existing
 :program:`MPD` objects (e.g. song files,
-directories, albums).  Clients can create arbitrary name/value
+directories, albums; but currently, they are only implemented for
+song).  Clients can create arbitrary name/value
 pairs.  :program:`MPD` itself does not assume
 any special meaning in them.
 

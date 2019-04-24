@@ -22,7 +22,9 @@
 #include "config/Param.hxx"
 #include "config/Data.hxx"
 #include "config/Option.hxx"
+#include "util/IterableSplitString.hxx"
 #include "util/RuntimeError.hxx"
+#include "util/StringView.hxx"
 
 #include <algorithm>
 #include <map>
@@ -54,35 +56,25 @@ static unsigned local_permissions;
 #endif
 
 static unsigned
-ParsePermission(const char *p)
+ParsePermission(StringView s)
 {
 	for (auto i = permission_names; i->name != nullptr; ++i)
-		if (strcmp(p, i->name) == 0)
+		if (s.Equals(i->name))
 			return i->value;
 
-	throw FormatRuntimeError("unknown permission \"%s\"", p);
+	throw FormatRuntimeError("unknown permission \"%.*s\"",
+				 int(s.size), s.data);
 }
 
 static unsigned parsePermissions(const char *string)
 {
 	assert(string != nullptr);
 
-	const char *const end = string + strlen(string);
-
 	unsigned permission = 0;
-	while (true) {
-		const char *comma = std::find(string, end,
-					      PERMISSION_SEPARATOR);
-		if (comma > string) {
-			const std::string name(string, comma);
-			permission |= ParsePermission(name.c_str());
-		}
 
-		if (comma == end)
-			break;
-
-		string = comma + 1;
-	}
+	for (const auto i : IterableSplitString(string, PERMISSION_SEPARATOR))
+		if (!i.empty())
+			permission |= ParsePermission(i);
 
 	return permission;
 }
@@ -131,7 +123,8 @@ initPermissions(const ConfigData &config)
 #endif
 }
 
-int getPermissionFromPassword(char const* password, unsigned* permission)
+int
+getPermissionFromPassword(const char *password, unsigned *permission) noexcept
 {
 	auto i = permission_passwords.find(password);
 	if (i == permission_passwords.end())
@@ -141,7 +134,8 @@ int getPermissionFromPassword(char const* password, unsigned* permission)
 	return 0;
 }
 
-unsigned getDefaultPermissions(void)
+unsigned
+getDefaultPermissions() noexcept
 {
 	return permission_default;
 }

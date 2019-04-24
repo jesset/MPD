@@ -37,13 +37,12 @@
 
 class SmbclientNeighborExplorer final : public NeighborExplorer {
 	struct Server {
-		std::string name, comment;
+		const std::string name, comment;
 
-		bool alive;
+		Server(std::string &&_name, std::string &&_comment) noexcept
+			:name(std::move(_name)),
+			 comment(std::move(_comment)) {}
 
-		Server(std::string &&_name, std::string &&_comment)
-			:name(std::move(_name)), comment(std::move(_comment)),
-			 alive(true) {}
 		Server(const Server &) = delete;
 
 		gcc_pure
@@ -67,7 +66,7 @@ class SmbclientNeighborExplorer final : public NeighborExplorer {
 	bool quit;
 
 public:
-	SmbclientNeighborExplorer(NeighborListener &_listener)
+	SmbclientNeighborExplorer(NeighborListener &_listener) noexcept
 		:NeighborExplorer(_listener),
 		 thread(BIND_THIS_METHOD(ThreadFunc)) {}
 
@@ -77,8 +76,8 @@ public:
 	List GetList() const noexcept override;
 
 private:
-	void Run();
-	void ThreadFunc();
+	void Run() noexcept;
+	void ThreadFunc() noexcept;
 };
 
 void
@@ -112,7 +111,7 @@ SmbclientNeighborExplorer::GetList() const noexcept
 }
 
 static void
-ReadServer(NeighborExplorer::List &list, const smbc_dirent &e)
+ReadServer(NeighborExplorer::List &list, const smbc_dirent &e) noexcept
 {
 	const std::string name(e.name, e.namelen);
 	const std::string comment(e.comment, e.commentlen);
@@ -121,17 +120,17 @@ ReadServer(NeighborExplorer::List &list, const smbc_dirent &e)
 }
 
 static void
-ReadServers(NeighborExplorer::List &list, const char *uri);
+ReadServers(NeighborExplorer::List &list, const char *uri) noexcept;
 
 static void
-ReadWorkgroup(NeighborExplorer::List &list, const std::string &name)
+ReadWorkgroup(NeighborExplorer::List &list, const std::string &name) noexcept
 {
 	std::string uri = "smb://" + name;
 	ReadServers(list, uri.c_str());
 }
 
 static void
-ReadEntry(NeighborExplorer::List &list, const smbc_dirent &e)
+ReadEntry(NeighborExplorer::List &list, const smbc_dirent &e) noexcept
 {
 	switch (e.smbc_type) {
 	case SMBC_WORKGROUP:
@@ -145,17 +144,15 @@ ReadEntry(NeighborExplorer::List &list, const smbc_dirent &e)
 }
 
 static void
-ReadServers(NeighborExplorer::List &list, int fd)
+ReadServers(NeighborExplorer::List &list, int fd) noexcept
 {
 	smbc_dirent *e;
 	while ((e = smbc_readdir(fd)) != nullptr)
 		ReadEntry(list, *e);
-
-	smbc_closedir(fd);
 }
 
 static void
-ReadServers(NeighborExplorer::List &list, const char *uri)
+ReadServers(NeighborExplorer::List &list, const char *uri) noexcept
 {
 	int fd = smbc_opendir(uri);
 	if (fd >= 0) {
@@ -190,7 +187,7 @@ FindBeforeServerByURI(NeighborExplorer::List::const_iterator prev,
 }
 
 inline void
-SmbclientNeighborExplorer::Run()
+SmbclientNeighborExplorer::Run() noexcept
 {
 	List found = DetectServers(), lost;
 
@@ -229,7 +226,7 @@ SmbclientNeighborExplorer::Run()
 }
 
 inline void
-SmbclientNeighborExplorer::ThreadFunc()
+SmbclientNeighborExplorer::ThreadFunc() noexcept
 {
 	SetThreadName("smbclient");
 

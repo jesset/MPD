@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -62,7 +62,7 @@ sticker_global_init(Path path);
  * Close the sticker database.
  */
 void
-sticker_global_finish();
+sticker_global_finish() noexcept;
 
 /**
  * Returns true if the sticker database is configured and available.
@@ -109,47 +109,15 @@ bool
 sticker_delete_value(const char *type, const char *uri, const char *name);
 
 /**
- * Frees resources held by the sticker object.
- *
- * @param sticker the sticker object to be freed
- */
-void
-sticker_free(Sticker *sticker);
-
-/**
- * Determines a single value in a sticker.
- *
- * @param sticker the sticker object
- * @param name the name of the sticker
- * @return the sticker value, or nullptr if none was found
- */
-gcc_pure
-const char *
-sticker_get_value(const Sticker &sticker, const char *name) noexcept;
-
-/**
- * Iterates over all sticker items in a sticker.
- *
- * @param sticker the sticker object
- * @param func a callback function
- * @param user_data an opaque pointer for the callback function
- */
-void
-sticker_foreach(const Sticker &sticker,
-		void (*func)(const char *name, const char *value,
-			     void *user_data),
-		void *user_data);
-
-/**
  * Loads the sticker for the specified resource.
  *
  * Throws #SqliteError on error.
  *
  * @param type the resource type, e.g. "song"
  * @param uri the URI of the resource, e.g. the song path
- * @return a sticker object, or nullptr if there is no sticker
+ * @return a sticker object
  */
-Sticker *
+Sticker
 sticker_load(const char *type, const char *uri);
 
 /**

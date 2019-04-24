@@ -35,7 +35,7 @@
 #include "storage/StorageInterface.hxx"
 
 #ifdef ENABLE_SQLITE
-#include "sticker/StickerDatabase.hxx"
+#include "sticker/Database.hxx"
 #include "sticker/SongSticker.hxx"
 #endif
 #endif
@@ -88,7 +88,7 @@ Instance::GetDatabaseOrThrow() const
 }
 
 void
-Instance::OnDatabaseModified()
+Instance::OnDatabaseModified() noexcept
 {
 	assert(database != nullptr);
 
@@ -101,7 +101,7 @@ Instance::OnDatabaseModified()
 }
 
 void
-Instance::OnDatabaseSongRemoved(const char *uri)
+Instance::OnDatabaseSongRemoved(const char *uri) noexcept
 {
 	assert(database != nullptr);
 

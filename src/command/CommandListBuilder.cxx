@@ -18,7 +18,7 @@
  */
 
 #include "CommandListBuilder.hxx"
-#include "client/ClientInternal.hxx"
+#include "client/Config.hxx"
 
 #include <string.h>
 

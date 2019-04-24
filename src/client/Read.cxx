@@ -17,7 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "ClientInternal.hxx"
+#include "Client.hxx"
+#include "Config.hxx"
 #include "Partition.hxx"
 #include "Instance.hxx"
 #include "event/Loop.hxx"
@@ -28,6 +29,9 @@
 BufferedSocket::InputResult
 Client::OnSocketInput(void *data, size_t length) noexcept
 {
+	if (background_command)
+		return InputResult::PAUSE;
+
 	char *p = (char *)data;
 	char *newline = (char *)memchr(p, '\n', length);
 	if (newline == nullptr)
@@ -43,10 +47,11 @@ Client::OnSocketInput(void *data, size_t length) noexcept
 	/* terminate the string at the end of the line */
 	*end = 0;
 
-	CommandResult result = client_process_line(*this, p);
+	CommandResult result = ProcessLine(p);
 	switch (result) {
 	case CommandResult::OK:
 	case CommandResult::IDLE:
+	case CommandResult::BACKGROUND:
 	case CommandResult::ERROR:
 		break;
 
@@ -61,11 +66,6 @@ Client::OnSocketInput(void *data, size_t length) noexcept
 		return InputResult::CLOSED;
 
 	case CommandResult::CLOSE:
-		Close();
-		return InputResult::CLOSED;
-	}
-
-	if (IsExpired()) {
 		Close();
 		return InputResult::CLOSED;
 	}

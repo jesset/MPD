@@ -50,11 +50,19 @@ public:
 	CurlInit(const CurlInit &) = delete;
 	CurlInit &operator=(const CurlInit &) = delete;
 
-	CurlGlobal &operator*() {
+	CurlGlobal &operator*() noexcept {
 		return *instance;
 	}
 
-	CurlGlobal *operator->() {
+	const CurlGlobal &operator*() const noexcept {
+		return *instance;
+	}
+
+	CurlGlobal *operator->() noexcept {
+		return instance;
+	}
+
+	const CurlGlobal *operator->() const noexcept {
 		return instance;
 	}
 };

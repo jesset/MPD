@@ -17,7 +17,8 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "ClientInternal.hxx"
+#include "Client.hxx"
+#include "Config.hxx"
 #include "Response.hxx"
 #include "Idle.hxx"
 
@@ -53,9 +54,6 @@ Client::IdleNotify() noexcept
 void
 Client::IdleAdd(unsigned flags) noexcept
 {
-	if (IsExpired())
-		return;
-
 	idle_flags |= flags;
 	if (idle_waiting && (idle_flags & idle_subscriptions))
 		IdleNotify();

@@ -1,7 +1,9 @@
 java = static_library(
   'java',
   'Global.cxx',
+  'Exception.cxx',
   'File.cxx',
+  'Object.cxx',
   'String.cxx',
   include_directories: inc,
   dependencies: [

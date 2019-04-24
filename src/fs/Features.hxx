@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,23 +17,20 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "ClientMessage.hxx"
-#include "util/CharUtil.hxx"
+#ifndef MPD_FS_FEATURES_HXX
+#define MPD_FS_FEATURES_HXX
 
-static constexpr bool
-valid_channel_char(const char ch) noexcept
-{
-	return IsAlphaNumericASCII(ch) ||
-		ch == '_' || ch == '-' || ch == '.' || ch == ':';
-}
+#include "config.h"
 
-bool
-client_message_valid_channel_name(const char *name) noexcept
-{
-	do {
-		if (!valid_channel_char(*name))
-			return false;
-	} while (*++name != 0);
+#if (defined(HAVE_ICU) || defined(HAVE_ICONV)) && !defined(_WIN32)
+#define HAVE_FS_CHARSET
+#endif
 
-	return true;
-}
+#if !defined(HAVE_FS_CHARSET) && !defined(_WIN32)
+/**
+ * Is the filesystem character set hard-coded to UTF-8?
+ */
+#define FS_CHARSET_ALWAYS_UTF8
+#endif
+
+#endif

@@ -18,18 +18,31 @@
  */
 
 #include "Client.hxx"
+#include "protocol/Ack.hxx"
+#include "fs/Path.hxx"
+#include "fs/FileInfo.hxx"
 
-#include <string.h>
-
-bool
-Client::Write(const void *data, size_t length)
+void
+Client::AllowFile(Path path_fs) const
 {
-	/* if the client is going to be closed, do nothing */
-	return !IsExpired() && FullyBufferedSocket::Write(data, length);
-}
+#ifdef _WIN32
+	(void)path_fs;
 
-bool
-Client::Write(const char *data)
-{
-	return Write(data, strlen(data));
+	throw ProtocolError(ACK_ERROR_PERMISSION, "Access denied");
+#else
+	if (uid >= 0 && (uid_t)uid == geteuid())
+		/* always allow access if user runs his own MPD
+		   instance */
+		return;
+
+	if (uid < 0)
+		/* unauthenticated client */
+		throw ProtocolError(ACK_ERROR_PERMISSION, "Access denied");
+
+	const FileInfo fi(path_fs);
+
+	if (fi.GetUid() != (uid_t)uid && (fi.GetMode() & 0444) != 0444)
+		/* client is not owner */
+		throw ProtocolError(ACK_ERROR_PERMISSION, "Access denied");
+#endif
 }

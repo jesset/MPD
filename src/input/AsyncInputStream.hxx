@@ -72,11 +72,11 @@ public:
 	AsyncInputStream(EventLoop &event_loop, const char *_url,
 			 Mutex &_mutex,
 			 size_t _buffer_size,
-			 size_t _resume_at);
+			 size_t _resume_at) noexcept;
 
-	virtual ~AsyncInputStream();
+	virtual ~AsyncInputStream() noexcept;
 
-	EventLoop &GetEventLoop() {
+	auto &GetEventLoop() const noexcept {
 		return deferred_resume.GetEventLoop();
 	}
 
@@ -84,7 +84,7 @@ public:
 	void Check() final;
 	bool IsEOF() noexcept final;
 	void Seek(offset_type new_offset) final;
-	std::unique_ptr<Tag> ReadTag() final;
+	std::unique_ptr<Tag> ReadTag() noexcept final;
 	bool IsAvailable() noexcept final;
 	size_t Read(void *ptr, size_t read_size) final;
 

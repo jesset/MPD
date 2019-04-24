@@ -17,26 +17,12 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "ClientInternal.hxx"
-#include "Log.hxx"
+#include "Client.hxx"
 
-void
-Client::SetExpired() noexcept
+#include <string.h>
+
+bool
+Client::Write(const char *data) noexcept
 {
-	if (IsExpired())
-		return;
-
-	FullyBufferedSocket::Close();
-	timeout_event.Schedule(std::chrono::steady_clock::duration::zero());
-}
-
-void
-Client::OnTimeout() noexcept
-{
-	if (!IsExpired()) {
-		assert(!idle_waiting);
-		FormatDebug(client_domain, "[%u] timeout", num);
-	}
-
-	Close();
+	return Write(data, strlen(data));
 }

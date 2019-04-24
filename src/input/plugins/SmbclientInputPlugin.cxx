@@ -22,13 +22,12 @@
 #include "lib/smbclient/Mutex.hxx"
 #include "../InputStream.hxx"
 #include "../InputPlugin.hxx"
+#include "../MaybeBufferedInputStream.hxx"
 #include "PluginUnavailable.hxx"
 #include "system/Error.hxx"
 #include "util/ASCII.hxx"
 
 #include <libsmbclient.h>
-
-#include <stdexcept>
 
 class SmbclientInputStream final : public InputStream {
 	SMBCCTX *ctx;
@@ -72,9 +71,8 @@ input_smbclient_init(EventLoop &, const ConfigBlock &)
 {
 	try {
 		SmbclientInit();
-	} catch (const std::runtime_error &e) {
-		// TODO: use std::throw_with_nested()?
-		throw PluginUnavailable(e.what());
+	} catch (...) {
+		std::throw_with_nested(PluginUnavailable("libsmbclient initialization failed"));
 	}
 
 	// TODO: create one global SMBCCTX here?
@@ -115,8 +113,9 @@ input_smbclient_open(const char *uri,
 		throw MakeErrno(e, "smbc_fstat() failed");
 	}
 
-	return std::make_unique<SmbclientInputStream>(uri, mutex,
-						      ctx, fd, st);
+	return std::make_unique<MaybeBufferedInputStream>
+		(std::make_unique<SmbclientInputStream>(uri, mutex,
+							ctx, fd, st));
 }
 
 size_t

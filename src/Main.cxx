@@ -28,8 +28,8 @@
 #include "Permission.hxx"
 #include "Listen.hxx"
 #include "client/Listener.hxx"
-#include "client/Client.hxx"
-#include "client/ClientList.hxx"
+#include "client/Config.hxx"
+#include "client/List.hxx"
 #include "command/AllCommands.hxx"
 #include "Partition.hxx"
 #include "tag/Config.hxx"
@@ -82,7 +82,7 @@
 #endif
 
 #ifdef ENABLE_SQLITE
-#include "sticker/StickerDatabase.hxx"
+#include "sticker/Database.hxx"
 #endif
 
 #ifdef ENABLE_ARCHIVE
@@ -360,7 +360,7 @@ Instance::BeginShutdownPartitions() noexcept
 }
 
 void
-Instance::OnIdle(unsigned flags)
+Instance::OnIdle(unsigned flags) noexcept
 {
 	/* send "idle" notifications to all subscribed
 	   clients */
@@ -639,6 +639,7 @@ JNIEXPORT void JNICALL
 Java_org_musicpd_Bridge_run(JNIEnv *env, jclass, jobject _context, jobject _logListener)
 {
 	Java::Init(env);
+	Java::Object::Initialise(env);
 	Java::File::Initialise(env);
 	Environment::Initialise(env);
 

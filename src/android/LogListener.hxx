@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -22,11 +22,13 @@
 
 #include "java/Object.hxx"
 
-class LogListener : public Java::Object {
+class LogListener : public Java::GlobalObject {
 public:
-	LogListener(JNIEnv *env, jobject obj):Java::Object(env, obj) {}
+	LogListener(JNIEnv *env, jobject obj) noexcept
+		:Java::GlobalObject(env, obj) {}
 
-	void OnLog(JNIEnv *env, int priority, const char *fmt, ...) const;
+	void OnLog(JNIEnv *env, int priority,
+		   const char *fmt, ...) const noexcept;
 };
 
 #endif

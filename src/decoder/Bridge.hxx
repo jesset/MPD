@@ -40,11 +40,12 @@ class DecoderBridge final : public DecoderClient {
 public:
 	DecoderControl &dc;
 
+private:
 	/**
 	 * For converting input data to the configured audio format.
 	 * nullptr means no conversion necessary.
 	 */
-	PcmConvert *convert = nullptr;
+	std::unique_ptr<PcmConvert> convert;
 
 	/**
 	 * The time stamp of the next data chunk, in seconds.
@@ -83,12 +84,14 @@ public:
 	 */
 	std::unique_ptr<Tag> song_tag;
 
+public:
 	/** the last tag received from the stream */
 	std::unique_ptr<Tag> stream_tag;
 
 	/** the last tag received from the decoder plugin */
 	std::unique_ptr<Tag> decoder_tag;
 
+private:
 	/** the chunk currently being written to */
 	MusicChunkPtr current_chunk;
 
@@ -106,13 +109,15 @@ public:
 	 */
 	std::exception_ptr error;
 
+public:
 	DecoderBridge(DecoderControl &_dc, bool _initial_seek_pending,
-		      std::unique_ptr<Tag> _tag)
-		:dc(_dc),
-		 initial_seek_pending(_initial_seek_pending),
-		 song_tag(std::move(_tag)) {}
+		      std::unique_ptr<Tag> _tag) noexcept;
 
-	~DecoderBridge();
+	~DecoderBridge() noexcept;
+
+	void Reset() noexcept {
+		error = {};
+	}
 
 	/**
 	 * Should be read operation be cancelled?  That is the case when the
@@ -136,32 +141,42 @@ public:
 	 *
 	 * Caller must not lock the #DecoderControl object.
 	 */
-	void FlushChunk();
+	void FlushChunk() noexcept;
+
+	void CheckFlushChunk() {
+		if (current_chunk != nullptr)
+			FlushChunk();
+	}
+
+	void CheckRethrowError() {
+		if (error)
+			std::rethrow_exception(error);
+	}
 
 	/* virtual methods from DecoderClient */
 	void Ready(AudioFormat audio_format,
 		   bool seekable, SignedSongTime duration) override;
 	DecoderCommand GetCommand() noexcept override;
-	void CommandFinished() override;
+	void CommandFinished() noexcept override;
 	SongTime GetSeekTime() noexcept override;
 	uint64_t GetSeekFrame() noexcept override;
-	void SeekError() override;
+	void SeekError() noexcept override;
 	InputStreamPtr OpenUri(const char *uri) override;
 	size_t Read(InputStream &is, void *buffer, size_t length) override;
-	void SubmitTimestamp(FloatDuration t) override;
+	void SubmitTimestamp(FloatDuration t) noexcept override;
 	DecoderCommand SubmitData(InputStream *is,
 				  const void *data, size_t length,
-				  uint16_t kbit_rate) override;
-	DecoderCommand SubmitTag(InputStream *is, Tag &&tag) override ;
-	void SubmitReplayGain(const ReplayGainInfo *replay_gain_info) override;
-	void SubmitMixRamp(MixRampInfo &&mix_ramp) override;
+				  uint16_t kbit_rate) noexcept override;
+	DecoderCommand SubmitTag(InputStream *is, Tag &&tag) noexcept override;
+	void SubmitReplayGain(const ReplayGainInfo *replay_gain_info) noexcept override;
+	void SubmitMixRamp(MixRampInfo &&mix_ramp) noexcept override;
 
 private:
 	/**
 	 * Checks if we need an "initial seek".  If so, then the
 	 * initial seek is prepared, and the function returns true.
 	 */
-	bool PrepareInitialSeek();
+	bool PrepareInitialSeek() noexcept;
 
 	/**
 	 * Returns the current decoder command.  May return a
@@ -175,9 +190,9 @@ private:
 	 * Sends a #Tag as-is to the #MusicPipe.  Flushes the current
 	 * chunk (DecoderBridge::chunk) if there is one.
 	 */
-	DecoderCommand DoSendTag(const Tag &tag);
+	DecoderCommand DoSendTag(const Tag &tag) noexcept;
 
-	bool UpdateStreamTag(InputStream *is);
+	bool UpdateStreamTag(InputStream *is) noexcept;
 };
 
 #endif

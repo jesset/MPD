@@ -17,22 +17,50 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#ifndef MPD_STICKER_PRINT_HXX
-#define MPD_STICKER_PRINT_HXX
+#ifndef MPD_CLIENT_LIST_HXX
+#define MPD_CLIENT_LIST_HXX
 
-struct Sticker;
-class Response;
+#include "Client.hxx"
 
-/**
- * Sends one sticker value to the client.
- */
-void
-sticker_print_value(Response &r, const char *name, const char *value);
+#include <boost/intrusive/list.hpp>
 
-/**
- * Sends all sticker values to the client.
- */
-void
-sticker_print(Response &r, const Sticker &sticker);
+class ClientList {
+	typedef boost::intrusive::list<Client,
+				       boost::intrusive::constant_time_size<true>> List;
+
+	const unsigned max_size;
+
+	List list;
+
+public:
+	explicit ClientList(unsigned _max_size) noexcept
+		:max_size(_max_size) {}
+
+	~ClientList() noexcept {
+		CloseAll();
+	}
+
+	List::iterator begin() noexcept {
+		return list.begin();
+	}
+
+	List::iterator end() noexcept {
+		return list.end();
+	}
+
+	bool IsFull() const noexcept {
+		return list.size() >= max_size;
+	}
+
+	void Add(Client &client) noexcept {
+		list.push_front(client);
+	}
+
+	void Remove(Client &client) noexcept;
+
+	void CloseAll() noexcept;
+
+	void IdleAdd(unsigned flags) noexcept;
+};
 
 #endif
