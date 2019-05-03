@@ -74,10 +74,10 @@ DecoderBridge::CheckCancelRead() const noexcept
  * one.
  */
 static DecoderCommand
-need_chunks(DecoderControl &dc) noexcept
+NeedChunks(DecoderControl &dc, std::unique_lock<Mutex> &lock) noexcept
 {
 	if (dc.command == DecoderCommand::NONE)
-		dc.Wait();
+		dc.Wait(lock);
 
 	return dc.command;
 }
@@ -85,8 +85,8 @@ need_chunks(DecoderControl &dc) noexcept
 static DecoderCommand
 LockNeedChunks(DecoderControl &dc) noexcept
 {
-	const std::lock_guard<Mutex> protect(dc.mutex);
-	return need_chunks(dc);
+	std::unique_lock<Mutex> lock(dc.mutex);
+	return NeedChunks(dc, lock);
 }
 
 MusicChunk *
@@ -127,7 +127,7 @@ DecoderBridge::FlushChunk() noexcept
 
 	const std::lock_guard<Mutex> protect(dc.mutex);
 	if (dc.client_is_waiting)
-		dc.client_cond.signal();
+		dc.client_cond.notify_one();
 }
 
 bool
@@ -310,7 +310,7 @@ DecoderBridge::CommandFinished() noexcept
 	}
 
 	dc.command = DecoderCommand::NONE;
-	dc.client_cond.signal();
+	dc.client_cond.notify_one();
 }
 
 SongTime
@@ -366,7 +366,7 @@ DecoderBridge::OpenUri(const char *uri)
 	auto is = InputStream::Open(uri, mutex);
 	is->SetHandler(&dc);
 
-	const std::lock_guard<Mutex> lock(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 	while (true) {
 		if (dc.command == DecoderCommand::STOP)
 			throw StopDecoder();
@@ -377,7 +377,7 @@ DecoderBridge::OpenUri(const char *uri)
 			return is;
 		}
 
-		cond.wait(mutex);
+		cond.wait(lock);
 	}
 }
 
@@ -391,7 +391,7 @@ try {
 	if (length == 0)
 		return 0;
 
-	std::lock_guard<Mutex> lock(is.mutex);
+	std::unique_lock<Mutex> lock(is.mutex);
 
 	while (true) {
 		if (CheckCancelRead())
@@ -400,7 +400,7 @@ try {
 		if (is.IsAvailable())
 			break;
 
-		dc.cond.wait(is.mutex);
+		dc.cond.wait(lock);
 	}
 
 	size_t nbytes = is.Read(buffer, length);

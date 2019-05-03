@@ -67,7 +67,7 @@ protected:
 	void CancelThread() noexcept override {
 		const std::lock_guard<Mutex> lock(mutex);
 		cancel = true;
-		cond.signal();
+		cond.notify_one();
 	}
 
 private:
@@ -87,11 +87,11 @@ private:
 
 	/* virtual methods from class InputStreamHandler */
 	void OnInputStreamReady() noexcept override {
-		cond.signal();
+		cond.notify_one();
 	}
 
 	void OnInputStreamAvailable() noexcept override {
-		cond.signal();
+		cond.notify_one();
 	}
 };
 
@@ -270,7 +270,7 @@ GetChromaprintCommand::OpenUri(const char *uri2)
 	auto is = InputStream::Open(uri2, mutex);
 	is->SetHandler(this);
 
-	const std::lock_guard<Mutex> lock(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 	while (true) {
 		if (cancel)
 			throw StopDecoder();
@@ -281,7 +281,7 @@ GetChromaprintCommand::OpenUri(const char *uri2)
 			return is;
 		}
 
-		cond.wait(mutex);
+		cond.wait(lock);
 	}
 }
 
@@ -294,7 +294,7 @@ GetChromaprintCommand::Read(InputStream &is, void *buffer, size_t length)
 	if (length == 0)
 		return 0;
 
-	std::lock_guard<Mutex> lock(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 
 	while (true) {
 		if (cancel)
@@ -303,7 +303,7 @@ GetChromaprintCommand::Read(InputStream &is, void *buffer, size_t length)
 		if (is.IsAvailable())
 			break;
 
-		cond.wait(mutex);
+		cond.wait(lock);
 	}
 
 	return is.Read(buffer, length);

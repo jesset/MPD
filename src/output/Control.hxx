@@ -307,7 +307,12 @@ public:
 	 *
 	 * Caller must lock the mutex.
 	 */
-	void WaitForCommand() noexcept;
+	void WaitForCommand(std::unique_lock<Mutex> &lock) noexcept;
+
+	void LockWaitForCommand() noexcept {
+		std::unique_lock<Mutex> lock(mutex);
+		WaitForCommand(lock);
+	}
 
 	/**
 	 * Sends a command, but does not wait for completion.
@@ -321,7 +326,7 @@ public:
 	 *
 	 * Caller must lock the mutex.
 	 */
-	void CommandWait(Command cmd) noexcept;
+	void CommandWait(std::unique_lock<Mutex> &lock, Command cmd) noexcept;
 
 	/**
 	 * Lock the object and execute the command synchronously.
@@ -355,9 +360,15 @@ public:
 	 * Caller must lock the mutex.
 	 */
 	void EnableDisableAsync();
+
+	void LockEnableDisableAsync() {
+		const std::lock_guard<Mutex> protect(mutex);
+		EnableDisableAsync();
+	}
+
 	void LockPauseAsync() noexcept;
 
-	void CloseWait() noexcept;
+	void CloseWait(std::unique_lock<Mutex> &lock) noexcept;
 	void LockCloseWait() noexcept;
 
 	/**
@@ -380,7 +391,8 @@ public:
 	/**
 	 * Caller must lock the mutex.
 	 */
-	bool Open(AudioFormat audio_format, const MusicPipe &mp) noexcept;
+	bool Open(std::unique_lock<Mutex> &lock,
+		  AudioFormat audio_format, const MusicPipe &mp) noexcept;
 
 	/**
 	 * Opens or closes the device, depending on the "enabled"
@@ -404,8 +416,29 @@ public:
 	gcc_pure
 	bool LockIsChunkConsumed(const MusicChunk &chunk) const noexcept;
 
-	void ClearTailChunk(const MusicChunk &chunk) {
+	/**
+	 * There's only one chunk left in the pipe (#pipe), and all
+	 * audio outputs have consumed it already.  Clear the
+	 * reference.
+	 *
+	 * This stalls playback to give the caller a chance to shift
+	 * the #MusicPipe without getting disturbed; after this,
+	 * LockAllowPlay() must be called to resume playback.
+	 */
+	void ClearTailChunk(const MusicChunk &chunk) noexcept {
+		if (!IsOpen())
+			return;
+
 		source.ClearTailChunk(chunk);
+		allow_play = false;
+	}
+
+	/**
+	 * Locking wrapper for ClearTailChunk().
+	 */
+	void LockClearTailChunk(const MusicChunk &chunk) noexcept {
+		const std::lock_guard<Mutex> lock(mutex);
+		ClearTailChunk(chunk);
 	}
 
 	void LockPlay() noexcept;
@@ -490,7 +523,7 @@ private:
 	 * @return true if playback should be continued, false if a
 	 * command was issued
 	 */
-	bool WaitForDelay() noexcept;
+	bool WaitForDelay(std::unique_lock<Mutex> &lock) noexcept;
 
 	/**
 	 * Caller must lock the mutex.
@@ -500,7 +533,7 @@ private:
 	/**
 	 * Caller must lock the mutex.
 	 */
-	bool PlayChunk() noexcept;
+	bool PlayChunk(std::unique_lock<Mutex> &lock) noexcept;
 
 	/**
 	 * Plays all remaining chunks, until the tail of the pipe has
@@ -514,14 +547,14 @@ private:
 	 * @return true if at least one chunk has been available,
 	 * false if the tail of the pipe was already reached
 	 */
-	bool InternalPlay() noexcept;
+	bool InternalPlay(std::unique_lock<Mutex> &lock) noexcept;
 
 	/**
 	 * Runs inside the OutputThread.
 	 * Caller must lock the mutex.
 	 * Handles exceptions.
 	 */
-	void InternalPause() noexcept;
+	void InternalPause(std::unique_lock<Mutex> &lock) noexcept;
 
 	/**
 	 * Runs inside the OutputThread.

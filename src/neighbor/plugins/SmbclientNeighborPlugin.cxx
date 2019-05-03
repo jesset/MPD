@@ -76,7 +76,11 @@ public:
 	List GetList() const noexcept override;
 
 private:
+	/**
+	 * Caller must lock the mutex.
+	 */
 	void Run() noexcept;
+
 	void ThreadFunc() noexcept;
 };
 
@@ -90,10 +94,11 @@ SmbclientNeighborExplorer::Open()
 void
 SmbclientNeighborExplorer::Close() noexcept
 {
-	mutex.lock();
-	quit = true;
-	cond.signal();
-	mutex.unlock();
+	{
+		const std::lock_guard<Mutex> lock(mutex);
+		quit = true;
+		cond.notify_one();
+	}
 
 	thread.Join();
 }
@@ -189,9 +194,12 @@ FindBeforeServerByURI(NeighborExplorer::List::const_iterator prev,
 inline void
 SmbclientNeighborExplorer::Run() noexcept
 {
-	List found = DetectServers(), lost;
+	List found, lost;
 
-	mutex.lock();
+	{
+		const ScopeUnlock unlock(mutex);
+		found = DetectServers();
+	}
 
 	const auto found_before_begin = found.before_begin();
 	const auto found_end = found.end();
@@ -216,7 +224,7 @@ SmbclientNeighborExplorer::Run() noexcept
 	     i != found_end; prev = i, i = std::next(prev))
 		list.push_front(*i);
 
-	mutex.unlock();
+	const ScopeUnlock unlock(mutex);
 
 	for (auto &i : lost)
 		listener.LostNeighbor(i);
@@ -230,22 +238,17 @@ SmbclientNeighborExplorer::ThreadFunc() noexcept
 {
 	SetThreadName("smbclient");
 
-	mutex.lock();
+	std::unique_lock<Mutex> lock(mutex);
 
 	while (!quit) {
-		mutex.unlock();
-
 		Run();
 
-		mutex.lock();
 		if (quit)
 			break;
 
 		// TODO: sleep for how long?
-		cond.timed_wait(mutex, std::chrono::seconds(10));
+		cond.wait_for(lock, std::chrono::seconds(10));
 	}
-
-	mutex.unlock();
 }
 
 static std::unique_ptr<NeighborExplorer>

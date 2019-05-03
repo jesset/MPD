@@ -305,7 +305,7 @@ private:
 		const std::lock_guard<Mutex> lock(mutex);
 		/* notify the OutputThread that there is now
 		   room in ring_buffer */
-		cond.signal();
+		cond.notify_one();
 
 		return true;
 	}
@@ -330,7 +330,7 @@ private:
 		const std::lock_guard<Mutex> lock(mutex);
 		error = std::current_exception();
 		active = false;
-		cond.signal();
+		cond.notify_one();
 	}
 
 	/* virtual methods from class MultiSocketMonitor */
@@ -796,7 +796,7 @@ AlsaOutput::DrainInternal()
 void
 AlsaOutput::Drain()
 {
-	const std::lock_guard<Mutex> lock(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 
 	if (error)
 		std::rethrow_exception(error);
@@ -806,7 +806,7 @@ AlsaOutput::Drain()
 	Activate();
 
 	while (drain && active)
-		cond.wait(mutex);
+		cond.wait(lock);
 
 	if (error)
 		std::rethrow_exception(error);
@@ -882,7 +882,7 @@ AlsaOutput::Play(const void *chunk, size_t size)
 		   been played */
 		return size;
 
-	const std::lock_guard<Mutex> lock(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 
 	while (true) {
 		if (error)
@@ -905,7 +905,7 @@ AlsaOutput::Play(const void *chunk, size_t size)
 
 		/* wait for the DispatchSockets() to make room in the
 		   ring_buffer */
-		cond.wait(mutex);
+		cond.wait(lock);
 	}
 }
 
@@ -956,7 +956,7 @@ try {
 			}
 
 			drain = false;
-			cond.signal();
+			cond.notify_one();
 			return;
 		}
 	}
@@ -984,7 +984,7 @@ try {
 			{
 				const std::lock_guard<Mutex> lock(mutex);
 				active = false;
-				cond.signal();
+				cond.notify_one();
 			}
 
 			/* avoid race condition: see if data has

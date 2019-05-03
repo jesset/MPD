@@ -175,9 +175,9 @@ class DumpRemoteTagHandler final : public RemoteTagHandler {
 
 public:
 	Tag Wait() {
-		const std::lock_guard<Mutex> lock(mutex);
+		std::unique_lock<Mutex> lock(mutex);
 		while (!done)
-			cond.wait(mutex);
+			cond.wait(lock);
 
 		if (error)
 			std::rethrow_exception(error);
@@ -190,14 +190,14 @@ public:
 		const std::lock_guard<Mutex> lock(mutex);
 		tag = std::move(_tag);
 		done = true;
-		cond.broadcast();
+		cond.notify_all();
 	}
 
 	void OnRemoteTagError(std::exception_ptr e) noexcept override {
 		const std::lock_guard<Mutex> lock(mutex);
 		error = std::move(e);
 		done = true;
-		cond.broadcast();
+		cond.notify_all();
 	}
 };
 

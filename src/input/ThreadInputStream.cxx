@@ -46,7 +46,7 @@ ThreadInputStream::Stop() noexcept
 	{
 		const std::lock_guard<Mutex> lock(mutex);
 		close = true;
-		wake_cond.signal();
+		wake_cond.notify_one();
 	}
 
 	Cancel();
@@ -67,7 +67,7 @@ ThreadInputStream::ThreadFunc() noexcept
 {
 	FormatThreadName("input:%s", plugin);
 
-	const std::lock_guard<Mutex> lock(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 
 	try {
 		Open();
@@ -85,7 +85,7 @@ ThreadInputStream::ThreadFunc() noexcept
 
 		auto w = buffer.Write();
 		if (w.empty()) {
-			wake_cond.wait(mutex);
+			wake_cond.wait(lock);
 		} else {
 			size_t nbytes;
 
@@ -145,7 +145,7 @@ ThreadInputStream::Read(void *ptr, size_t read_size)
 			size_t nbytes = std::min(read_size, r.size);
 			memcpy(ptr, r.data, nbytes);
 			buffer.Consume(nbytes);
-			wake_cond.broadcast();
+			wake_cond.notify_all();
 			offset += nbytes;
 			return nbytes;
 		}

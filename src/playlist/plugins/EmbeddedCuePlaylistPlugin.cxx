@@ -35,6 +35,8 @@
 #include "fs/AllocatedPath.hxx"
 #include "util/ASCII.hxx"
 
+#include <memory>
+
 #include <string.h>
 
 class EmbeddedCuePlaylist final : public SongEnumerator {
@@ -56,18 +58,10 @@ public:
 	 */
 	char *next;
 
-	CueParser *parser;
+	std::unique_ptr<CueParser> parser;
 
 public:
-	EmbeddedCuePlaylist()
-		:parser(nullptr) {
-	}
-
-	virtual ~EmbeddedCuePlaylist() {
-		delete parser;
-	}
-
-	virtual std::unique_ptr<DetachedSong> NextSong() override;
+	std::unique_ptr<DetachedSong> NextSong() override;
 };
 
 class ExtractCuesheetTagHandler final : public NullTagHandler {
@@ -113,7 +107,7 @@ embcue_playlist_open_uri(const char *uri,
 	playlist->cuesheet = std::move(extract_cuesheet.cuesheet);
 
 	playlist->next = &playlist->cuesheet[0];
-	playlist->parser = new CueParser();
+	playlist->parser = std::make_unique<CueParser>();
 
 	return playlist;
 }

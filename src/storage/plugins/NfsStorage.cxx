@@ -138,7 +138,7 @@ private:
 
 		const std::lock_guard<Mutex> protect(mutex);
 		state = _state;
-		cond.broadcast();
+		cond.notify_all();
 	}
 
 	void SetState(State _state, std::exception_ptr &&e) noexcept {
@@ -147,7 +147,7 @@ private:
 		const std::lock_guard<Mutex> protect(mutex);
 		state = _state;
 		last_exception = std::move(e);
-		cond.broadcast();
+		cond.notify_all();
 	}
 
 	void Connect() noexcept {
@@ -167,17 +167,19 @@ private:
 	}
 
 	void WaitConnected() {
-		const std::lock_guard<Mutex> protect(mutex);
+		std::unique_lock<Mutex> lock(mutex);
 
 		while (true) {
 			switch (state) {
 			case State::INITIAL:
 				/* schedule connect */
-				mutex.unlock();
-				defer_connect.Schedule();
-				mutex.lock();
+				{
+					const ScopeUnlock unlock(mutex);
+					defer_connect.Schedule();
+				}
+
 				if (state == State::INITIAL)
-					cond.wait(mutex);
+					cond.wait(lock);
 				break;
 
 			case State::CONNECTING:

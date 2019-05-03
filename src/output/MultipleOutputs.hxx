@@ -34,6 +34,7 @@
 #include "Chrono.hxx"
 #include "util/Compiler.h"
 
+#include <memory>
 #include <vector>
 
 #include <assert.h>
@@ -48,7 +49,7 @@ struct ReplayGainConfig;
 class MultipleOutputs final : public PlayerOutputs {
 	MixerListener &mixer_listener;
 
-	std::vector<AudioOutputControl *> outputs;
+	std::vector<std::unique_ptr<AudioOutputControl>> outputs;
 
 	AudioFormat input_audio_format = AudioFormat::Undefined();
 
@@ -169,13 +170,6 @@ private:
 	 * Has this chunk been consumed by all audio outputs?
 	 */
 	bool IsChunkConsumed(const MusicChunk *chunk) const noexcept;
-
-	/**
-	 * There's only one chunk left in the pipe (#pipe), and all
-	 * audio outputs have consumed it already.  Clear the
-	 * reference.
-	 */
-	void ClearTailChunk(const MusicChunk *chunk, bool *locked) noexcept;
 
 	/* virtual methods from class PlayerOutputs */
 	void EnableDisable() override;

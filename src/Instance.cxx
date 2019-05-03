@@ -34,6 +34,10 @@
 #include "db/update/Service.hxx"
 #include "storage/StorageInterface.hxx"
 
+#ifdef ENABLE_NEIGHBOR_PLUGINS
+#include "neighbor/Glue.hxx"
+#endif
+
 #ifdef ENABLE_SQLITE
 #include "sticker/Database.hxx"
 #include "sticker/SongSticker.hxx"
@@ -107,9 +111,9 @@ Instance::OnDatabaseSongRemoved(const char *uri) noexcept
 
 #ifdef ENABLE_SQLITE
 	/* if the song has a sticker, remove it */
-	if (sticker_enabled()) {
+	if (HasStickerDatabase()) {
 		try {
-			sticker_song_delete(uri);
+			sticker_song_delete(*sticker_database, uri);
 		} catch (...) {
 		}
 	}

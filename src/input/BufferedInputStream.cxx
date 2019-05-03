@@ -50,7 +50,7 @@ BufferedInputStream::~BufferedInputStream() noexcept
 	{
 		const std::lock_guard<Mutex> lock(mutex);
 		stop = true;
-		wake_cond.signal();
+		wake_cond.notify_one();
 	}
 
 	thread.Join();
@@ -81,7 +81,7 @@ BufferedInputStream::Seek(offset_type new_offset)
 
 	seek_offset = new_offset;
 	seek = true;
-	wake_cond.signal();
+	wake_cond.notify_one();
 
 	while (seek)
 		client_cond.wait(mutex);
@@ -123,21 +123,21 @@ BufferedInputStream::Read(void *ptr, size_t s)
 			if (!IsAvailable()) {
 				/* wake up the sleeping thread */
 				idle = false;
-				wake_cond.signal();
+				wake_cond.notify_one();
 			}
 
 			return nbytes;
 		}
 
 		if (read_error) {
-			wake_cond.signal();
+			wake_cond.notify_one();
 			std::rethrow_exception(std::exchange(read_error, {}));
 		}
 
 		if (idle) {
 			/* wake up the sleeping thread */
 			idle = false;
-			wake_cond.signal();
+			wake_cond.notify_one();
 		}
 
 		client_cond.wait(mutex);
@@ -149,7 +149,7 @@ BufferedInputStream::RunThread() noexcept
 {
 	SetThreadName("input_buffered");
 
-	const std::lock_guard<Mutex> lock(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 
 	while (!stop) {
 		assert(size == buffer.size());
@@ -163,7 +163,7 @@ BufferedInputStream::RunThread() noexcept
 
 			idle = false;
 			seek = false;
-			client_cond.signal();
+			client_cond.notify_one();
 		} else if (!idle && !read_error &&
 			   input->IsAvailable() && !input->IsEOF()) {
 			const auto read_offset = input->GetOffset();
@@ -186,7 +186,7 @@ BufferedInputStream::RunThread() noexcept
 						input->Seek(offset);
 					} catch (...) {
 						read_error = std::current_exception();
-						client_cond.signal();
+						client_cond.notify_one();
 						InvokeOnAvailable();
 					}
 				}
@@ -202,9 +202,9 @@ BufferedInputStream::RunThread() noexcept
 				read_error = std::current_exception();
 			}
 
-			client_cond.signal();
+			client_cond.notify_one();
 			InvokeOnAvailable();
 		} else
-			wake_cond.wait(mutex);
+			wake_cond.wait(lock);
 	}
 }

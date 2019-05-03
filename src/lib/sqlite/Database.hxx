@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,35 +17,42 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "TextFile.hxx"
-#include "FileReader.hxx"
-#include "AutoGunzipReader.hxx"
-#include "BufferedReader.hxx"
-#include "fs/Path.hxx"
+#ifndef MPD_SQLITE_DATABASE_HXX
+#define MPD_SQLITE_DATABASE_HXX
 
-#include <assert.h>
+#include <sqlite3.h>
 
-TextFile::TextFile(Path path_fs)
-	:file_reader(std::make_unique<FileReader>(path_fs)),
-#ifdef ENABLE_ZLIB
-	 gunzip_reader(std::make_unique<AutoGunzipReader>(*file_reader)),
+#include <utility>
+
+namespace Sqlite {
+
+class Database {
+	sqlite3 *db = nullptr;
+
+public:
+	Database() = default;
+
+	explicit Database(const char *path);
+
+	~Database() noexcept {
+		if (db != nullptr)
+			sqlite3_close(db);
+	}
+
+	Database(Database &&src) noexcept
+		:db(std::exchange(src.db, nullptr)) {}
+
+	Database &operator=(Database &&src) noexcept {
+		using std::swap;
+		swap(db, src.db);
+		return *this;
+	}
+
+	operator sqlite3 *() const noexcept {
+		return db;
+	}
+};
+
+} // namespace Sqlite
+
 #endif
-	 buffered_reader(std::make_unique<BufferedReader>(*
-#ifdef ENABLE_ZLIB
-							  gunzip_reader
-#else
-							  file_reader
-#endif
-							  ))
-{
-}
-
-TextFile::~TextFile() noexcept = default;
-
-char *
-TextFile::ReadLine()
-{
-	assert(buffered_reader != nullptr);
-
-	return buffered_reader->ReadLine();
-}

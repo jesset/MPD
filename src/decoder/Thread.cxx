@@ -457,7 +457,7 @@ decoder_run_song(DecoderControl &dc,
 		throw FormatRuntimeError("Failed to decode %s", error_uri);
 	}
 
-	dc.client_cond.signal();
+	dc.client_cond.notify_one();
 }
 
 /**
@@ -486,7 +486,7 @@ try {
 	dc.state = DecoderState::ERROR;
 	dc.command = DecoderCommand::NONE;
 	dc.error = std::current_exception();
-	dc.client_cond.signal();
+	dc.client_cond.notify_one();
 }
 
 void
@@ -494,7 +494,7 @@ DecoderControl::RunThread() noexcept
 {
 	SetThreadName("decoder");
 
-	const std::lock_guard<Mutex> protect(mutex);
+	std::unique_lock<Mutex> lock(mutex);
 
 	do {
 		assert(state == DecoderState::STOP ||
@@ -535,7 +535,7 @@ DecoderControl::RunThread() noexcept
 			break;
 
 		case DecoderCommand::NONE:
-			Wait();
+			Wait(lock);
 			break;
 		}
 	} while (command != DecoderCommand::NONE || !quit);

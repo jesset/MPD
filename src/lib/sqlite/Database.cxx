@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -17,35 +17,19 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "TextFile.hxx"
-#include "FileReader.hxx"
-#include "AutoGunzipReader.hxx"
-#include "BufferedReader.hxx"
-#include "fs/Path.hxx"
+#include "Database.hxx"
+#include "Error.hxx"
+#include "util/StringFormat.hxx"
 
-#include <assert.h>
+namespace Sqlite {
 
-TextFile::TextFile(Path path_fs)
-	:file_reader(std::make_unique<FileReader>(path_fs)),
-#ifdef ENABLE_ZLIB
-	 gunzip_reader(std::make_unique<AutoGunzipReader>(*file_reader)),
-#endif
-	 buffered_reader(std::make_unique<BufferedReader>(*
-#ifdef ENABLE_ZLIB
-							  gunzip_reader
-#else
-							  file_reader
-#endif
-							  ))
+Database::Database(const char *path)
 {
+	int result = sqlite3_open(path, &db);
+	if (result != SQLITE_OK)
+		throw SqliteError(db, result,
+				  StringFormat<1024>("Failed to open sqlite database '%s'",
+						     path));
 }
 
-TextFile::~TextFile() noexcept = default;
-
-char *
-TextFile::ReadLine()
-{
-	assert(buffered_reader != nullptr);
-
-	return buffered_reader->ReadLine();
-}
+} // namespace Sqlite
