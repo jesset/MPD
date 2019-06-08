@@ -25,6 +25,8 @@
 #ifndef MPD_RIFF_HXX
 #define MPD_RIFF_HXX
 
+#include "thread/Mutex.hxx"
+
 #include <stddef.h>
 
 class InputStream;
@@ -38,6 +40,6 @@ class InputStream;
  * @return the size of the ID3 chunk
  */
 size_t
-riff_seek_id3(InputStream &is);
+riff_seek_id3(InputStream &is, std::unique_lock<Mutex> &lock);
 
 #endif

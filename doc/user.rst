@@ -334,6 +334,39 @@ The following table lists the input options valid for all plugins:
 
 More information can be found in the :ref:`input_plugins` reference.
 
+Configuring the Input Cache
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The input cache prefetches queued song files before they are going to
+be played.  This has several advantages:
+
+- risk of buffer underruns during playback is reduced because this
+  decouples playback from disk (or network) I/O
+- bulk transfers may be faster and more energy efficient than loading
+  small chunks on-the-fly
+- by prefetching several songs at a time, the hard disk can spin down
+  for longer periods of time
+
+This comes at a cost:
+
+- memory usage
+- bulk transfers may reduce the performance of other applications
+  which also want to access the disk (if the kernel's I/O scheduler
+  isn't doing its job properly)
+
+To enable the input cache, add an ``input_cache`` block to the
+configuration file:
+
+.. code-block:: none
+
+    input_cache {
+        size "1 GB"
+    }
+
+This allocates a cache of 1 GB.  If the cache grows larger than that,
+older files will be evicted.
+
+
 Configuring decoder plugins
 ---------------------------
 
@@ -402,14 +435,9 @@ The following table lists the audio_output options valid for all plugins:
      - The name of the plugin
    * - **name**
      - The name of the audio output. It is visible to the client. Some plugins also use it internally, e.g. as a name registered in the PULSE server.
-   * - **format**
-     -  Always open the audio output with the specified audio format samplerate:bits:channels), regardless of the format of the input file. This is optional for most plugins.
-
-        Any of the three attributes may be an asterisk to specify that this attribute should not be enforced, example: 48000:16:*. *:*:* is equal to not having a format specification.
-
-        The following values are valid for bits: 8 (signed 8 bit integer samples), 16, 24 (signed 24 bit integer samples padded to 32 bit), 32 (signed 32 bit integer samples), f (32 bit floating point, -1.0 to 1.0), "dsd" means DSD (Direct Stream Digital). For DSD, there are special cases such as "dsd64", which allows you to omit the sample rate (e.g. dsd512:2 for stereo DSD512, i.e. 22.5792 MHz).
-
-        The sample rate is special for DSD: :program:`MPD` counts the number of bytes, not bits. Thus, a DSD "bit" rate of 22.5792 MHz (DSD512) is 2822400 from :program:`MPD`'s point of view (44100*512/8).
+   * - **format samplerate:bits:channels**
+     -  Always open the audio output with the specified audio format, regardless of the format of the input file. This is optional for most plugins.
+        See :ref:`audio_output_format` for a detailed description of the value.
    * - **enabed yes|no**
      - Specifies whether this audio output is enabled when :program:`MPD` is started. By default, all audio outputs are enabled. This is just the default setting when there is no state file; with a state file, the previous state is restored.
    * - **tags yes|no**
@@ -504,13 +532,34 @@ reference.
 Audio Format Settings
 ---------------------
 
-Global Audio Format
-~~~~~~~~~~~~~~~~~~~
+.. _audio_output_format:
 
-The setting audio_output_format forces :program:`MPD` to use one audio format for all outputs. Doing that is usually not a good idea. The values are the same as in format in the audio_output section.
+Global Audio Format
+^^^^^^^^^^^^^^^^^^^
+
+The setting ``audio_output_format`` forces :program:`MPD` to use one
+audio format for all outputs.  Doing that is usually not a good idea.
+
+The value is specified as ``samplerate:bits:channels``.
+
+Any of the three attributes may be an asterisk to specify that this
+attribute should not be enforced, example: ``48000:16:*``.
+``*:*:*`` is equal to not having a format specification.
+
+The following values are valid for bits: ``8`` (signed 8 bit integer
+samples), ``16``, ``24`` (signed 24 bit integer samples padded to 32
+bit), ``32`` (signed 32 bit integer samples), ``f`` (32 bit floating
+point, -1.0 to 1.0), ``dsd`` means DSD (Direct Stream Digital). For
+DSD, there are special cases such as ``dsd64``, which allows you to
+omit the sample rate (e.g. ``dsd512:2`` for stereo DSD512,
+i.e. 22.5792 MHz).
+
+The sample rate is special for DSD: :program:`MPD` counts the number
+of bytes, not bits. Thus, a DSD "bit" rate of 22.5792 MHz (DSD512) is
+2822400 from :program:`MPD`'s point of view (44100*512/8).
 
 Resampler
-~~~~~~~~~
+^^^^^^^^^
 
 Sometimes, music needs to be resampled before it can be played; for example, CDs use a sample rate of 44,100 Hz while many cheap audio chips can only handle 48,000 Hz. Resampling reduces the quality and consumes a lot of CPU. There are different options, some of them optimized for high quality and others for low CPU usage, but you can't have both at the same time. Often, the resampler is the component that is responsible for most of :program:`MPD`'s CPU usage. Since :program:`MPD` comes with high quality defaults, it may appear that :program:`MPD` consumes more CPU than other software.
 
@@ -523,7 +572,7 @@ Client Connections
 .. _listeners:
 
 Listeners
-~~~~~~~~~
+^^^^^^^^^
 
 The setting :code:`bind_to_address` specifies which addresses
 :program:`MPD` listens on for connections from clients.  It can be
@@ -566,7 +615,7 @@ used.
 
 
 Permissions and Passwords
-~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, all clients are unauthenticated and have a full set of permissions. This can be restricted with the settings :code:`default_permissions` and :code:`password`.
 
@@ -629,7 +678,7 @@ Other Settings
        Section :ref:`tags` contains a list of supported tags.
 
 The State File
-~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^
 
  The state file is a file where :program:`MPD` saves and restores its state (play queue, playback position etc.) to keep it persistent across restarts and reboots. It is an optional setting.
 
@@ -647,7 +696,7 @@ The State File
      - Auto-save the state file this number of seconds after each state change. Defaults to 120 (2 minutes).
 
 The Sticker Database
-~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^
 
 "Stickers" are pieces of information attached to songs. Some clients
 use them to store ratings and other volatile data. This feature
@@ -664,7 +713,7 @@ requires :program:`SQLite`, compile-time configure option
      - The location of the sticker database.
 
 Resource Limitations
-~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^
 
 These settings are various limitations to prevent :program:`MPD` from using too many resources (denial of service).
 
@@ -686,7 +735,7 @@ These settings are various limitations to prevent :program:`MPD` from using too 
      - The maximum size of the output buffer to a client (maximum response size). Default is 8192 (8 MiB).
 
 Buffer Settings
-~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^
 
 Do not change these unless you know what you are doing.
 
@@ -696,11 +745,12 @@ Do not change these unless you know what you are doing.
 
    * - Setting
      - Description
-   * - **audio_buffer_size KBYTES**
-     - Adjust the size of the internal audio buffer. Default is 4096 (4 MiB).
+   * - **audio_buffer_size SIZE**
+     - Adjust the size of the internal audio buffer. Default is
+       :samp:`4 MB` (4 MiB).
 
 Zeroconf
-~~~~~~~~
+^^^^^^^^
 
 If Zeroconf support (`Avahi <http://avahi.org/>`_ or Apple's Bonjour)
 was enabled at compile time with :code:`-Dzeroconf=...`,
@@ -786,10 +836,12 @@ You can verify whether the real-time scheduler is active with the ps command:
 
 The CLS column shows the CPU scheduler; TS is the normal scheduler; FF and RR are real-time schedulers. In this example, two threads use the real-time scheduler: the output thread and the rtio (real-time I/O) thread; these two are the important ones. The database update thread uses the idle scheduler ("IDL in ps), which only gets CPU when no other process needs it.
 
-Note
-~~~~
+.. note::
 
-There is a rumor that real-time scheduling improves audio quality. That is not true. All it does is reduce the probability of skipping (audio buffer xruns) when the computer is under heavy load.
+   There is a rumor that real-time scheduling improves audio
+   quality. That is not true. All it does is reduce the probability of
+   skipping (audio buffer xruns) when the computer is under heavy
+   load.
 
 Using MPD
 *********
@@ -817,7 +869,7 @@ Depending on the size of your music collection and the speed of the storage, thi
 To exclude a file from the update, create a file called :file:`.mpdignore` in its parent directory. Each line of that file may contain a list of shell wildcards. Matching files in the current directory and all subdirectories are excluded.
 
 Mounting other storages into the music directory
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 :program:`MPD` has various storage plugins of which multiple instances can be "mounted" into the music directory. This way, you can use local music, file servers and USB sticks at the same time. Example:
 
@@ -885,7 +937,7 @@ To verify if :program:`MPD` converts the audio format, enable verbose logging, a
 .. code-block:: none
 
     decoder: audio_format=44100:24:2, seekable=true
-    output: opened plugin=alsa name="An ALSA output"audio_format=44100:16:2
+    output: opened plugin=alsa name="An ALSA output" audio_format=44100:16:2
     output: converting from 44100:24:2
 
 This example shows that a 24 bit file is being played, but the sound chip cannot play 24 bit. It falls back to 16 bit, discarding 8 bit.
@@ -912,7 +964,7 @@ Check list for bit-perfect playback:
   device (:samp:`hw:0,0` or similar).
 * Don't use software volume (setting :code:`mixer_type`).
 * Don't force :program:`MPD` to use a specific audio format (settings
-  :code:`format`, :code:`audio_output_format`).
+  :code:`format`, :ref:`audio_output_format <audio_output_format>`).
 * Verify that you are really doing bit-perfect playback using :program:`MPD`'s verbose log and :file:`/proc/asound/card*/pcm*p/sub*/hw_params`. Some DACs can also indicate the audio format.
 
 Direct Stream Digital (DSD)
@@ -963,18 +1015,18 @@ Support
 -------
 
 Getting Help
-~~~~~~~~~~~~
+^^^^^^^^^^^^
 
 The :program:`MPD` project runs a `forum <https://forum.musicpd.org/>`_ and an IRC channel (#mpd on Freenode) for requesting help. Visit the MPD help page for details on how to get help.
 
 Common Problems
-~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^
 
 1. Database
-^^^^^^^^^^^
+"""""""""""
 
 Question: I can't see my music in the MPD database!
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * Check your :code:`music_directory` setting. 
 * Does the MPD user have read permission on all music files, and read+execute permission on all music directories (and all of their parent directories)? 
@@ -982,22 +1034,22 @@ Question: I can't see my music in the MPD database!
 * Did you enable all relevant decoder plugins at compile time? :command:`mpd --version` will tell you. 
 
 Question: MPD doesn't read ID3 tags!
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * You probably compiled :program:`MPD` without libid3tag. :command:`mpd --version` will tell you.
 
 2. Playback
-^^^^^^^^^^^
+"""""""""""
 
 Question: I can't hear music on my client!
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * That problem usually follows a misunderstanding of the nature of :program:`MPD`. :program:`MPD` is a remote-controlled music player, not a music distribution system. Usually, the speakers are connected to the box where :program:`MPD` runs, and the :program:`MPD` client only sends control commands, but the client does not actually play your music.
 
   :program:`MPD` has output plugins which allow hearing music on a remote host (such as httpd), but that is not :program:`MPD`'s primary design goal. 
 
 Question: "Device or resource busy"
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 *  This ALSA error means that another program uses your sound hardware exclusively. You can stop that program to allow :program:`MPD` to use it.
 
@@ -1016,7 +1068,7 @@ Your bug report should contain:
 * be clear about what you expect MPD to do, and what is actually happening
 
 MPD crashes
-~~~~~~~~~~~
+^^^^^^^^^^^
 
 All :program:`MPD` crashes are bugs which must be fixed by a developer, and you should write a bug report. (Many crash bugs are caused by codec libraries used by :program:`MPD`, and then that library must be fixed; but in any case, the :program:`MPD` `bug tracker <https://github.com/MusicPlayerDaemon/MPD/issues>`_ is a good place to report it first if you don't know.)
 

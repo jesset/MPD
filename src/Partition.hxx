@@ -71,17 +71,25 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 		  unsigned max_length,
 		  unsigned buffer_chunks,
 		  AudioFormat configured_audio_format,
-		  const ReplayGainConfig &replay_gain_config);
+		  const ReplayGainConfig &replay_gain_config) noexcept;
 
 	~Partition() noexcept;
 
-	void EmitGlobalEvent(unsigned mask) {
+	void EmitGlobalEvent(unsigned mask) noexcept {
 		global_events.OrMask(mask);
 	}
 
-	void EmitIdle(unsigned mask);
+	void EmitIdle(unsigned mask) noexcept;
 
-	void ClearQueue() {
+	/**
+	 * Populate the #InputCacheManager with soon-to-be-played song
+	 * files.
+	 *
+	 * Errors will be logged.
+	 */
+	void PrefetchQueue() noexcept;
+
+	void ClearQueue() noexcept {
 		playlist.Clear(pc);
 	}
 
@@ -108,11 +116,11 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 		playlist.DeleteRange(pc, start, end);
 	}
 
-	void StaleSong(const char *uri) {
+	void StaleSong(const char *uri) noexcept {
 		playlist.StaleSong(pc, uri);
 	}
 
-	void Shuffle(unsigned start, unsigned end) {
+	void Shuffle(unsigned start, unsigned end) noexcept {
 		playlist.Shuffle(pc, start, end);
 	}
 
@@ -142,7 +150,7 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 		playlist.SetPriorityId(pc, song_id, priority);
 	}
 
-	void Stop() {
+	void Stop() noexcept {
 		playlist.Stop(pc);
 	}
 
@@ -174,27 +182,27 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 		playlist.SeekCurrent(pc, seek_time, relative);
 	}
 
-	void SetRepeat(bool new_value) {
+	void SetRepeat(bool new_value) noexcept {
 		playlist.SetRepeat(pc, new_value);
 	}
 
-	bool GetRandom() const {
+	bool GetRandom() const noexcept {
 		return playlist.GetRandom();
 	}
 
-	void SetRandom(bool new_value) {
+	void SetRandom(bool new_value) noexcept {
 		playlist.SetRandom(pc, new_value);
 	}
 
-	void SetSingle(SingleMode new_value) {
+	void SetSingle(SingleMode new_value) noexcept {
 		playlist.SetSingle(pc, new_value);
 	}
 
-	void SetConsume(bool new_value) {
+	void SetConsume(bool new_value) noexcept {
 		playlist.SetConsume(new_value);
 	}
 
-	void SetReplayGainMode(ReplayGainMode mode) {
+	void SetReplayGainMode(ReplayGainMode mode) noexcept {
 		replay_gain_mode = mode;
 		UpdateEffectiveReplayGainMode();
 	}
@@ -203,7 +211,7 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 	 * Publishes the effective #ReplayGainMode to all subsystems.
 	 * #ReplayGainMode::AUTO is substituted.
 	 */
-	void UpdateEffectiveReplayGainMode();
+	void UpdateEffectiveReplayGainMode() noexcept;
 
 #ifdef ENABLE_DATABASE
 	/**
@@ -211,7 +219,7 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 	 * if this MPD configuration has no database (no
 	 * music_directory was configured).
 	 */
-	const Database *GetDatabase() const;
+	const Database *GetDatabase() const noexcept;
 
 	const Database &GetDatabaseOrThrow() const;
 
@@ -219,14 +227,14 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 	 * The database has been modified.  Propagate the change to
 	 * all subsystems.
 	 */
-	void DatabaseModified(const Database &db);
+	void DatabaseModified(const Database &db) noexcept;
 #endif
 
 	/**
 	 * A tag in the play queue has been modified by the player
 	 * thread.  Propagate the change to all subsystems.
 	 */
-	void TagModified();
+	void TagModified() noexcept;
 
 	/**
 	 * The tag of the given song has been modified.  Propagate the
@@ -237,19 +245,19 @@ struct Partition final : QueueListener, PlayerListener, MixerListener {
 	/**
 	 * Synchronize the player with the play queue.
 	 */
-	void SyncWithPlayer();
+	void SyncWithPlayer() noexcept;
 
 	/**
 	 * Border pause has just been enabled. Change single mode to off
 	 * if it was one-shot.
 	 */
-	void BorderPause();
+	void BorderPause() noexcept;
 
 private:
 	/* virtual methods from class QueueListener */
-	void OnQueueModified() override;
-	void OnQueueOptionsChanged() override;
-	void OnQueueSongStarted() override;
+	void OnQueueModified() noexcept override;
+	void OnQueueOptionsChanged() noexcept override;
+	void OnQueueSongStarted() noexcept override;
 
 	/* virtual methods from class PlayerListener */
 	void OnPlayerSync() noexcept override;
@@ -257,7 +265,7 @@ private:
 	void OnBorderPause() noexcept override;
 
 	/* virtual methods from class MixerListener */
-	void OnMixerVolumeChanged(Mixer &mixer, int volume) override;
+	void OnMixerVolumeChanged(Mixer &mixer, int volume) noexcept override;
 
 	/* callback for #global_events */
 	void OnGlobalEvent(unsigned mask);

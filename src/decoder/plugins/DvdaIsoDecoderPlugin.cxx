@@ -37,6 +37,7 @@
 #include "thread/Mutex.hxx"
 #include "util/Alloc.hxx"
 #include "util/bit_reverse.h"
+#include "util/StringView.hxx"
 #include "util/FormatString.hxx"
 #include "util/AllocatedString.hxx"
 #include "util/UriUtil.hxx"

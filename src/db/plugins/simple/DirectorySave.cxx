@@ -25,7 +25,7 @@
 #include "PlaylistDatabase.hxx"
 #include "fs/io/TextFile.hxx"
 #include "fs/io/BufferedOutputStream.hxx"
-#include "util/ChronoUtil.hxx"
+#include "time/ChronoUtil.hxx"
 #include "util/StringCompare.hxx"
 #include "util/NumberParser.hxx"
 #include "util/RuntimeError.hxx"
@@ -168,7 +168,7 @@ directory_load(TextFile &file, Directory &directory)
 						  directory);
 			song->audio_format = audio_format;
 
-			directory.AddSong(song);
+			directory.AddSong(std::move(song));
 		} else if ((p = StringAfterPrefix(line, PLAYLIST_META_BEGIN))) {
 			const char *name = p;
 			playlist_metadata_load(file, directory.playlists, name);

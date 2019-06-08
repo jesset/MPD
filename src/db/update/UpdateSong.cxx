@@ -33,7 +33,7 @@ inline void
 UpdateWalk::UpdateSongFile2(Directory &directory,
 			    const char *name, const char *suffix,
 			    const StorageFileInfo &info) noexcept
-{
+try {
 	Song *song;
 	{
 		const ScopeDatabaseLock protect;
@@ -61,8 +61,9 @@ UpdateWalk::UpdateSongFile2(Directory &directory,
 	if (song == nullptr) {
 		FormatDebug(update_domain, "reading %s/%s",
 			    directory.GetPath(), name);
-		song = Song::LoadFile(storage, name, directory);
-		if (song == nullptr) {
+
+		auto new_song = Song::LoadFile(storage, name, directory);
+		if (!new_song) {
 			FormatDebug(update_domain,
 				    "ignoring unrecognized file %s/%s",
 				    directory.GetPath(), name);
@@ -71,7 +72,7 @@ UpdateWalk::UpdateSongFile2(Directory &directory,
 
 		{
 			const ScopeDatabaseLock protect;
-			directory.AddSong(song);
+			directory.AddSong(std::move(new_song));
 		}
 
 		modified = true;
@@ -89,6 +90,10 @@ UpdateWalk::UpdateSongFile2(Directory &directory,
 
 		modified = true;
 	}
+} catch (...) {
+	FormatError(std::current_exception(),
+		    "error reading file %s/%s",
+		    directory.GetPath(), name);
 }
 
 bool

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -27,11 +27,11 @@
 #include "util/Alloc.hxx"
 #include "util/ScopeExit.hxx"
 #include "util/StringStrip.hxx"
+#include "util/StringView.hxx"
 #include "Log.hxx"
 
 #include <id3tag.h>
 
-#include <string>
 #include <exception>
 
 #include <string.h>
@@ -281,8 +281,8 @@ tag_id3_import_ufid(const struct id3_tag *id3_tag,
 		if (value == nullptr || length == 0)
 			continue;
 
-		std::string p((const char *)value, length);
-		handler.OnTag(TAG_MUSICBRAINZ_TRACKID, p.c_str());
+		handler.OnTag(TAG_MUSICBRAINZ_TRACKID,
+			      {(const char *)value, length});
 	}
 }
 
@@ -317,6 +317,7 @@ scan_id3_tag(const struct id3_tag *tag, TagHandler &handler) noexcept
 	tag_id3_import_text(tag, "TPE3", TAG_PERFORMER,
 			    handler);
 	tag_id3_import_text(tag, "TPE4", TAG_PERFORMER, handler);
+	tag_id3_import_text(tag, "TIT1", TAG_GROUPING, handler);
 	tag_id3_import_comment(tag, ID3_FRAME_COMMENT, TAG_COMMENT,
 			       handler);
 	tag_id3_import_text(tag, ID3_FRAME_DISC, TAG_DISC,

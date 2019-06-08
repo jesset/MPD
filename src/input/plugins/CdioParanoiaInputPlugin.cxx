@@ -90,9 +90,10 @@ class CdioParanoiaInputStream final : public InputStream {
 	}
 
 	/* virtual methods from InputStream */
-	bool IsEOF() noexcept override;
-	size_t Read(void *ptr, size_t size) override;
-	void Seek(offset_type offset) override;
+	bool IsEOF() const noexcept override;
+	size_t Read(std::unique_lock<Mutex> &lock,
+		    void *ptr, size_t size) override;
+	void Seek(std::unique_lock<Mutex> &lock, offset_type offset) override;
 };
 
 static constexpr Domain cdio_domain("cdio");
@@ -255,7 +256,8 @@ input_cdio_open(const char *uri,
 }
 
 void
-CdioParanoiaInputStream::Seek(offset_type new_offset)
+CdioParanoiaInputStream::Seek(std::unique_lock<Mutex> &,
+			      offset_type new_offset)
 {
 	if (new_offset > size)
 		throw FormatRuntimeError("Invalid offset to seek %ld (%ld)",
@@ -276,7 +278,8 @@ CdioParanoiaInputStream::Seek(offset_type new_offset)
 }
 
 size_t
-CdioParanoiaInputStream::Read(void *ptr, size_t length)
+CdioParanoiaInputStream::Read(std::unique_lock<Mutex> &,
+			      void *ptr, size_t length)
 {
 	size_t nbytes = 0;
 	char *wptr = (char *) ptr;
@@ -341,7 +344,7 @@ CdioParanoiaInputStream::Read(void *ptr, size_t length)
 }
 
 bool
-CdioParanoiaInputStream::IsEOF() noexcept
+CdioParanoiaInputStream::IsEOF() const noexcept
 {
 	return lsn_from + lsn_relofs > lsn_to;
 }

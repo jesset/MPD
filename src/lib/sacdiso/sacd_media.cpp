@@ -117,7 +117,7 @@ bool sacd_media_stream_t::close() {
 
 bool sacd_media_stream_t::seek(int64_t position) {
 	try {
-		is->Seek(position);
+		is->LockSeek(position);
 	}
 	catch (const std::runtime_error &e) {
 		LogError(e);
@@ -137,7 +137,7 @@ int64_t sacd_media_stream_t::get_size() {
 size_t sacd_media_stream_t::read(void* data, size_t size) {
 	size_t read_bytes;
 	try {
-		read_bytes = is->Read(data, size);
+		read_bytes = is->LockRead(data, size);
 	}
 	catch (const std::runtime_error &e) {
 		LogError(e);
@@ -149,7 +149,7 @@ size_t sacd_media_stream_t::read(void* data, size_t size) {
 int64_t sacd_media_stream_t::skip(int64_t bytes) {
 	int64_t position = is->GetOffset() + bytes;
 	try {
-		is->Seek(position);
+		is->LockSeek(position);
 	}
 	catch (const std::runtime_error &e) {
 		LogError(e);

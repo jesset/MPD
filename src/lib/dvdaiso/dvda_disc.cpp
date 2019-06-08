@@ -21,9 +21,10 @@
 
 #include <malloc.h>
 #include <string>
-#include "util/Domain.hxx"
 #include "Log.hxx"
 #include "dvda_disc.h"
+#include "util/Domain.hxx"
+#include "util/StringView.hxx"
 
 using namespace std;
 
@@ -249,7 +250,7 @@ bool dvda_disc_t::read_frame(uint8_t* frame_data, size_t* frame_size) {
 	if (bytes_decoded <= 0) {
 		track_stream.move_read_ptr(0);
 		if (bytes_decoded == audio_stream_t::RETCODE_EXCEPT) {
-			LogFormat(dvdaiso_domain, LogLevel::ERROR, "Exception occured in DVD-Audio Decoder");
+			LogFormat(LogLevel::ERROR, dvdaiso_domain, "Exception occured in DVD-Audio Decoder");
 			return false;
 		}
 		bool decoder_needs_reinit = (bytes_decoded == audio_stream_t::RETCODE_REINIT);
@@ -258,7 +259,7 @@ bool dvda_disc_t::read_frame(uint8_t* frame_data, size_t* frame_size) {
 				delete audio_stream;
 				audio_stream = nullptr;
 			}
-			LogFormat(dvdaiso_domain, LogLevel::WARNING, "Reinitializing DVD-Audio Decoder: MLP/TrueHD");
+			LogFormat(LogLevel::WARNING, dvdaiso_domain, "Reinitializing DVD-Audio Decoder: MLP/TrueHD");
 			goto decode_run_read_stream_start;
 		}
 		if (track_stream.get_read_size() == 0) {
@@ -269,7 +270,7 @@ bool dvda_disc_t::read_frame(uint8_t* frame_data, size_t* frame_size) {
 					audio_stream = nullptr;
 				}
 				stream_ps1_info.header.stream_id = UNK_STREAM_ID;
-				LogFormat(dvdaiso_domain, LogLevel::WARNING, "Reinitializing DVD-Audio Decoder: PCM");
+				LogFormat(LogLevel::WARNING, dvdaiso_domain, "Reinitializing DVD-Audio Decoder: PCM");
 				goto decode_run_read_stream_start;
 			}
 			else {
@@ -296,7 +297,7 @@ bool dvda_disc_t::read_frame(uint8_t* frame_data, size_t* frame_size) {
 			}
 			if (major_sync > 0) {
 				track_stream.move_read_ptr(major_sync);
-				LogFormat(dvdaiso_domain, LogLevel::ERROR, "DVD-Audio Decoder is out of sync: %d bytes skipped", major_sync);
+				LogFormat(LogLevel::ERROR, dvdaiso_domain, "DVD-Audio Decoder is out of sync: %d bytes skipped", major_sync);
 			}
 			goto decode_run_read_stream_start;
 		}
@@ -312,7 +313,7 @@ bool dvda_disc_t::read_frame(uint8_t* frame_data, size_t* frame_size) {
 			else {
 				track_stream.move_read_ptr(DVD_BLOCK_SIZE);
 				stream_ps1_info.header.stream_id = UNK_STREAM_ID;
-				LogFormat(dvdaiso_domain, LogLevel::ERROR, "DVD-Audio Decoder initialization failed");
+				LogFormat(LogLevel::ERROR, dvdaiso_domain, "DVD-Audio Decoder initialization failed");
 			}
 			goto decode_run_read_stream_start;
 		}
@@ -398,7 +399,7 @@ void dvda_disc_t::stream_buffer_read() {
 			stream_ps1_info = ps1_info;
 		}
 		if (blocks_read < blocks_to_read) {
-			LogFormat(dvdaiso_domain, LogLevel::ERROR, "DVD-Audio Decoder cannot read track data: titleset = %d, block_number = %d, blocks_to_read = %d", sel_titleset_index, stream_block_current + blocks_read, blocks_to_read - blocks_read);
+			LogFormat(LogLevel::ERROR, dvdaiso_domain, "DVD-Audio Decoder cannot read track data: titleset = %d, block_number = %d, blocks_to_read = %d", sel_titleset_index, stream_block_current + blocks_read, blocks_to_read - blocks_read);
 		}
 		stream_block_current += blocks_to_read;
 		if (stream_block_current > audio_track.block_last) {
@@ -419,7 +420,7 @@ void dvda_disc_t::stream_buffer_read() {
 					}
 				}
 				if (blocks_read < blocks_to_read) {
-					LogFormat(dvdaiso_domain, LogLevel::ERROR, "DVD-Audio Decoder cannot read track tail: titleset = %d, block_number = %d, blocks_to_read = %d", sel_titleset_index, stream_block_current + blocks_read, blocks_to_read - blocks_read);
+					LogFormat(LogLevel::ERROR, dvdaiso_domain, "DVD-Audio Decoder cannot read track tail: titleset = %d, block_number = %d, blocks_to_read = %d", sel_titleset_index, stream_block_current + blocks_read, blocks_to_read - blocks_read);
 				}
 				stream_block_current += blocks_to_read;
 			}

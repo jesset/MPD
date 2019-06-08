@@ -56,9 +56,8 @@ public:
 
 private:
 	/**
-	 * A cond that gets signalled when the state of this object
-	 * changes from the I/O thread.  The client of this object may
-	 * wait on it.
+	 * An (optional) object which gets receives events from this
+	 * #InputStream.
 	 *
 	 * This object is allocated by the client, and the client is
 	 * responsible for freeing it.
@@ -77,7 +76,7 @@ protected:
 	 */
 	bool seekable = false;
 
-	static constexpr offset_type UNKNOWN_SIZE = -1;
+	static constexpr offset_type UNKNOWN_SIZE = ~offset_type(0);
 
 	/**
 	 * the size of the resource, or #UNKNOWN_SIZE if unknown
@@ -271,9 +270,11 @@ public:
 	 *
 	 * Throws std::runtime_error on error.
 	 *
+	 * @param lock the locked mutex; may be used to wait on
+	 * condition variables
 	 * @param offset the relative offset
 	 */
-	virtual void Seek(offset_type offset);
+	virtual void Seek(std::unique_lock<Mutex> &lock, offset_type offset);
 
 	/**
 	 * Wrapper for Seek() which locks and unlocks the mutex; the
@@ -285,19 +286,22 @@ public:
 	 * Rewind to the beginning of the stream.  This is a wrapper
 	 * for Seek(0, error).
 	 */
-	void Rewind() {
-		Seek(0);
+	void Rewind(std::unique_lock<Mutex> &lock) {
+		if (offset > 0)
+			Seek(lock, 0);
 	}
 
 	void LockRewind() {
-		LockSeek(0);
+		std::unique_lock<Mutex> lock(mutex);
+		Rewind(lock);
 	}
 
 	/**
 	 * Skip input bytes.
 	 */
-	void Skip(offset_type _offset) {
-		Seek(GetOffset() + _offset);
+	void Skip(std::unique_lock<Mutex> &lock,
+		  offset_type _offset) {
+		Seek(lock, GetOffset() + _offset);
 	}
 
 	void LockSkip(offset_type _offset);
@@ -308,14 +312,14 @@ public:
 	 * The caller must lock the mutex.
 	 */
 	gcc_pure
-	virtual bool IsEOF() noexcept = 0;
+	virtual bool IsEOF() const noexcept = 0;
 
 	/**
 	 * Wrapper for IsEOF() which locks and unlocks the mutex; the
 	 * caller must not be holding it already.
 	 */
 	gcc_pure
-	bool LockIsEOF() noexcept;
+	bool LockIsEOF() const noexcept;
 
 	/**
 	 * Reads the tag from the stream.
@@ -341,7 +345,7 @@ public:
 	 * The caller must lock the mutex.
 	 */
 	gcc_pure
-	virtual bool IsAvailable() noexcept;
+	virtual bool IsAvailable() const noexcept;
 
 	/**
 	 * Reads data from the stream into the caller-supplied buffer.
@@ -351,12 +355,15 @@ public:
 	 *
 	 * Throws std::runtime_error on error.
 	 *
+	 * @param lock the locked mutex; may be used to wait on
+	 * condition variables
 	 * @param ptr the buffer to read into
 	 * @param size the maximum number of bytes to read
 	 * @return the number of bytes read
 	 */
 	gcc_nonnull_all
-	virtual size_t Read(void *ptr, size_t size) = 0;
+	virtual size_t Read(std::unique_lock<Mutex> &lock,
+			    void *ptr, size_t size) = 0;
 
 	/**
 	 * Wrapper for Read() which locks and unlocks the mutex;
@@ -379,7 +386,7 @@ public:
 	 * @return true if the whole data was read, false otherwise.
 	 */
 	gcc_nonnull_all
-	void ReadFull(void *ptr, size_t size);
+	void ReadFull(std::unique_lock<Mutex> &lock, void *ptr, size_t size);
 
 	/**
 	 * Wrapper for ReadFull() which locks and unlocks the mutex;

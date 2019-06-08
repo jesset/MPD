@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2017 Content Management AG
+ * Copyright 2007-2019 Content Management AG
  * All rights reserved.
  *
  * author: Max Kellermann <mk@cm4all.com>
@@ -30,32 +30,28 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "TimeISO8601.hxx"
-#include "TimeConvert.hxx"
-#include "TimeParser.hxx"
+#ifndef TIME_ISO8601_HXX
+#define TIME_ISO8601_HXX
 
-StringBuffer<64>
-FormatISO8601(const struct tm &tm) noexcept
-{
-	StringBuffer<64> buffer;
-	strftime(buffer.data(), buffer.capacity(),
-#ifdef _WIN32
-		 "%Y-%m-%dT%H:%M:%SZ",
-#else
-		 "%FT%TZ",
-#endif
-		 &tm);
-	return buffer;
-}
+#include "util/Compiler.h"
 
+#include <string>
+#include <chrono>
+
+#include <stddef.h>
+
+struct tm;
+template<size_t CAPACITY> class StringBuffer;
+
+gcc_pure
 StringBuffer<64>
-FormatISO8601(std::chrono::system_clock::time_point tp)
-{
-	return FormatISO8601(GmTime(tp));
-}
+FormatISO8601(const struct tm &tm) noexcept;
+
+gcc_pure
+StringBuffer<64>
+FormatISO8601(std::chrono::system_clock::time_point tp);
 
 std::chrono::system_clock::time_point
-ParseISO8601(const char *s)
-{
-	return ParseTimePoint(s, "%FT%TZ");
-}
+ParseISO8601(const char *s);
+
+#endif

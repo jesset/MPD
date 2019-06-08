@@ -32,8 +32,13 @@ input_glue = static_library(
   'TextInputStream.cxx',
   'ProxyInputStream.cxx',
   'RewindInputStream.cxx',
+  'BufferingInputStream.cxx',
   'BufferedInputStream.cxx',
   'MaybeBufferedInputStream.cxx',
+  'cache/Config.cxx',
+  'cache/Manager.cxx',
+  'cache/Item.cxx',
+  'cache/Stream.cxx',
   include_directories: inc,
 )
 

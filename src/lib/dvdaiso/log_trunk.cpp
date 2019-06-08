@@ -50,10 +50,10 @@ void mpd_av_log_callback(void* ptr, int level, const char* fmt, va_list vl) {
 	}
 	vsprintf(msg, fmt, vl);
 	#ifdef _DEBUG
-	Log(mpd_domain, mpd_level, msg);
+	Log(mpd_level, mpd_domain, msg);
 	#else
 	if (level != AV_LOG_DEBUG) {
-		Log(mpd_domain, mpd_level, msg);
+		Log(mpd_level, mpd_domain, msg);
 	}
 	#endif
 }
@@ -73,6 +73,6 @@ void mpd_dprintf(int ptr, const char* fmt, ...) {
 	va_list vl;
 	va_start(vl, fmt);
 	vsprintf(msg, fmt, vl);
-	Log(mpd_domain, mpd_level, msg);
+	Log(mpd_level, mpd_domain, msg);
 	va_end(vl);
 }

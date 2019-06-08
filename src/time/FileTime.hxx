@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2014-2017 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2013-2019 Max Kellermann <max.kellermann@gmail.com>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,58 +27,44 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "TimeParser.hxx"
-#include "Compiler.h"
+#ifndef FILE_TIME_HXX
+#define FILE_TIME_HXX
 
-#include <stdexcept>
+#include <fileapi.h>
 
-#include <assert.h>
-#include <time.h>
+#include <chrono>
 
-#if !defined(__GLIBC__) && !defined(_WIN32)
+#include <stdint.h>
 
-/**
- * Determine the time zone offset in a portable way.
- */
-gcc_const
-static time_t
-GetTimeZoneOffset() noexcept
+constexpr uint64_t
+ConstructUint64(DWORD lo, DWORD hi) noexcept
 {
-	time_t t = 1234567890;
-	struct tm tm;
-	tm.tm_isdst = 0;
-	gmtime_r(&t, &tm);
-	return t - mktime(&tm);
+	return uint64_t(lo) | (uint64_t(hi) << 32);
+}
+
+constexpr uint64_t
+ToUint64(FILETIME ft) noexcept
+{
+	return ConstructUint64(ft.dwLowDateTime, ft.dwHighDateTime);
+}
+
+constexpr time_t
+FileTimeToTimeT(FILETIME ft) noexcept
+{
+	return (ToUint64(ft) - 116444736000000000) / 10000000;
+}
+
+inline std::chrono::system_clock::time_point
+FileTimeToChrono(FILETIME ft) noexcept
+{
+	// TODO: eliminate the time_t roundtrip, preserve sub-second resolution
+	return std::chrono::system_clock::from_time_t(FileTimeToTimeT(ft));
+}
+
+constexpr std::chrono::seconds
+DeltaFileTimeS(FILETIME a, FILETIME b) noexcept
+{
+	return std::chrono::seconds((ToUint64(a) - ToUint64(b)) / 10000000);
 }
 
 #endif
-
-std::chrono::system_clock::time_point
-ParseTimePoint(const char *s, const char *format)
-{
-	assert(s != nullptr);
-	assert(format != nullptr);
-
-#ifdef _WIN32
-	/* TODO: emulate strptime()? */
-	(void)s;
-	(void)format;
-	throw std::runtime_error("Time parsing not implemented on Windows");
-#else
-	struct tm tm;
-	const char *end = strptime(s, format, &tm);
-	if (end == nullptr || *end != 0)
-		throw std::runtime_error("Failed to parse time stamp");
-
-#ifdef __GLIBC__
-	/* timegm() is a GNU extension */
-	const auto t = timegm(&tm);
-#else
-	tm.tm_isdst = 0;
-	const auto t = mktime(&tm) + GetTimeZoneOffset();
-#endif /* !__GLIBC__ */
-
-	return std::chrono::system_clock::from_time_t(t);
-
-#endif /* !_WIN32 */
-}

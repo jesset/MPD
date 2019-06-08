@@ -30,6 +30,10 @@
 #include "tag/Tag.hxx"
 #include "Log.hxx"
 #include "input/InputStream.hxx"
+#include "input/LocalOpen.hxx"
+#include "input/cache/Manager.hxx"
+#include "input/cache/Stream.hxx"
+#include "fs/Path.hxx"
 #include "util/ConstBuffer.hxx"
 #include "util/StringBuffer.hxx"
 
@@ -47,6 +51,22 @@ DecoderBridge::~DecoderBridge() noexcept
 {
 	/* caller must flush the chunk */
 	assert(current_chunk == nullptr);
+}
+
+InputStreamPtr
+DecoderBridge::OpenLocal(Path path_fs, const char *uri_utf8)
+{
+	if (dc.input_cache != nullptr) {
+		auto lease = dc.input_cache->Get(uri_utf8, true);
+		if (lease) {
+			auto is = std::make_unique<CacheInputStream>(std::move(lease),
+								     dc.mutex);
+			is->SetHandler(&dc);
+			return is;
+		}
+	}
+
+	return OpenLocalInputStream(path_fs, dc.mutex);
 }
 
 bool
@@ -403,7 +423,7 @@ try {
 		dc.cond.wait(lock);
 	}
 
-	size_t nbytes = is.Read(buffer, length);
+	size_t nbytes = is.Read(lock, buffer, length);
 	assert(nbytes > 0 || is.IsEOF());
 
 	return nbytes;

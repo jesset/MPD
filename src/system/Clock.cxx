@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,21 +20,11 @@
 #include "Clock.hxx"
 
 #ifdef _WIN32
+#include "time/FileTime.hxx"
+
 #include <windows.h>
 
-gcc_const
-static unsigned
-DeltaFileTimeS(FILETIME a, FILETIME b)
-{
-	ULARGE_INTEGER a2, b2;
-	b2.LowPart = b.dwLowDateTime;
-	b2.HighPart = b.dwHighDateTime;
-	a2.LowPart = a.dwLowDateTime;
-	a2.HighPart = a.dwHighDateTime;
-	return (a2.QuadPart - b2.QuadPart) / 10000000;
-}
-
-unsigned
+std::chrono::seconds
 GetProcessUptimeS()
 {
 	FILETIME creation_time, exit_time, kernel_time, user_time, now;

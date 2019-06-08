@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2009-2019 Max Kellermann <max.kellermann@gmail.com>
  * http://www.musicpd.org
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,8 +35,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+struct StringView;
+
 static inline unsigned
-ParseUnsigned(const char *p, char **endptr=nullptr, int base=10)
+ParseUnsigned(const char *p, char **endptr=nullptr, int base=10) noexcept
 {
 	assert(p != nullptr);
 
@@ -44,7 +46,7 @@ ParseUnsigned(const char *p, char **endptr=nullptr, int base=10)
 }
 
 static inline int
-ParseInt(const char *p, char **endptr=nullptr, int base=10)
+ParseInt(const char *p, char **endptr=nullptr, int base=10) noexcept
 {
 	assert(p != nullptr);
 
@@ -52,7 +54,7 @@ ParseInt(const char *p, char **endptr=nullptr, int base=10)
 }
 
 static inline uint64_t
-ParseUint64(const char *p, char **endptr=nullptr, int base=10)
+ParseUint64(const char *p, char **endptr=nullptr, int base=10) noexcept
 {
 	assert(p != nullptr);
 
@@ -60,15 +62,18 @@ ParseUint64(const char *p, char **endptr=nullptr, int base=10)
 }
 
 static inline int64_t
-ParseInt64(const char *p, char **endptr=nullptr, int base=10)
+ParseInt64(const char *p, char **endptr=nullptr, int base=10) noexcept
 {
 	assert(p != nullptr);
 
 	return strtoll(p, endptr, base);
 }
 
+int64_t
+ParseInt64(StringView s, const char **endptr_r=nullptr, int base=10) noexcept;
+
 static inline double
-ParseDouble(const char *p, char **endptr=nullptr)
+ParseDouble(const char *p, char **endptr=nullptr) noexcept
 {
 	assert(p != nullptr);
 
@@ -76,7 +81,7 @@ ParseDouble(const char *p, char **endptr=nullptr)
 }
 
 static inline float
-ParseFloat(const char *p, char **endptr=nullptr)
+ParseFloat(const char *p, char **endptr=nullptr) noexcept
 {
 #if defined(__BIONIC__) && __ANDROID_API__ < 21
 	/* strtof() requires API level 21 */

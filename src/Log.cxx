@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,8 +19,7 @@
 
 #include "LogV.hxx"
 #include "util/Domain.hxx"
-
-#include <exception>
+#include "util/Exception.hxx"
 
 #include <stdio.h>
 #include <string.h>
@@ -29,20 +28,20 @@
 static constexpr Domain exception_domain("exception");
 
 void
-LogFormatV(const Domain &domain, LogLevel level,
+LogFormatV(LogLevel level, const Domain &domain,
 	   const char *fmt, va_list ap) noexcept
 {
 	char msg[1024];
 	vsnprintf(msg, sizeof(msg), fmt, ap);
-	Log(domain, level, msg);
+	Log(level, domain, msg);
 }
 
 void
-LogFormat(const Domain &domain, LogLevel level, const char *fmt, ...) noexcept
+LogFormat(LogLevel level, const Domain &domain, const char *fmt, ...) noexcept
 {
 	va_list ap;
 	va_start(ap, fmt);
-	LogFormatV(domain, level, fmt, ap);
+	LogFormatV(level, domain, fmt, ap);
 	va_end(ap);
 }
 
@@ -51,7 +50,7 @@ FormatDebug(const Domain &domain, const char *fmt, ...) noexcept
 {
 	va_list ap;
 	va_start(ap, fmt);
-	LogFormatV(domain, LogLevel::DEBUG, fmt, ap);
+	LogFormatV(LogLevel::DEBUG, domain, fmt, ap);
 	va_end(ap);
 }
 
@@ -60,7 +59,7 @@ FormatInfo(const Domain &domain, const char *fmt, ...) noexcept
 {
 	va_list ap;
 	va_start(ap, fmt);
-	LogFormatV(domain, LogLevel::INFO, fmt, ap);
+	LogFormatV(LogLevel::INFO, domain, fmt, ap);
 	va_end(ap);
 }
 
@@ -69,7 +68,7 @@ FormatDefault(const Domain &domain, const char *fmt, ...) noexcept
 {
 	va_list ap;
 	va_start(ap, fmt);
-	LogFormatV(domain, LogLevel::DEFAULT, fmt, ap);
+	LogFormatV(LogLevel::DEFAULT, domain, fmt, ap);
 	va_end(ap);
 }
 
@@ -78,7 +77,7 @@ FormatWarning(const Domain &domain, const char *fmt, ...) noexcept
 {
 	va_list ap;
 	va_start(ap, fmt);
-	LogFormatV(domain, LogLevel::WARNING, fmt, ap);
+	LogFormatV(LogLevel::WARNING, domain, fmt, ap);
 	va_end(ap);
 }
 
@@ -87,42 +86,24 @@ FormatError(const Domain &domain, const char *fmt, ...) noexcept
 {
 	va_list ap;
 	va_start(ap, fmt);
-	LogFormatV(domain, LogLevel::ERROR, fmt, ap);
+	LogFormatV(LogLevel::ERROR, domain, fmt, ap);
 	va_end(ap);
 }
 
 void
-LogError(const std::exception &e) noexcept
+Log(LogLevel level, const std::exception &e) noexcept
 {
-	Log(exception_domain, LogLevel::ERROR, e.what());
-
-	try {
-		std::rethrow_if_nested(e);
-	} catch (const std::exception &nested) {
-		LogError(nested, "nested");
-	} catch (...) {
-		Log(exception_domain, LogLevel::ERROR,
-		    "Unrecognized nested exception");
-	}
+	Log(level, exception_domain, GetFullMessage(e).c_str());
 }
 
 void
-LogError(const std::exception &e, const char *msg) noexcept
+Log(LogLevel level, const std::exception &e, const char *msg) noexcept
 {
-	FormatError(exception_domain, "%s: %s", msg, e.what());
-
-	try {
-		std::rethrow_if_nested(e);
-	} catch (const std::exception &nested) {
-		LogError(nested);
-	} catch (...) {
-		Log(exception_domain, LogLevel::ERROR,
-		    "Unrecognized nested exception");
-	}
+	LogFormat(level, exception_domain, "%s: %s", msg, GetFullMessage(e).c_str());
 }
 
 void
-FormatError(const std::exception &e, const char *fmt, ...) noexcept
+LogFormat(LogLevel level, const std::exception &e, const char *fmt, ...) noexcept
 {
 	char msg[1024];
 	va_list ap;
@@ -130,37 +111,24 @@ FormatError(const std::exception &e, const char *fmt, ...) noexcept
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
 
-	LogError(e, msg);
+	Log(level, e, msg);
 }
 
 void
-LogError(const std::exception_ptr &ep) noexcept
+Log(LogLevel level, const std::exception_ptr &ep) noexcept
 {
-	try {
-		std::rethrow_exception(ep);
-	} catch (const std::exception &e) {
-		LogError(e);
-	} catch (...) {
-		Log(exception_domain, LogLevel::ERROR,
-		    "Unrecognized exception");
-	}
+	Log(level, exception_domain, GetFullMessage(ep).c_str());
 }
 
 void
-LogError(const std::exception_ptr &ep, const char *msg) noexcept
+Log(LogLevel level, const std::exception_ptr &ep, const char *msg) noexcept
 {
-	try {
-		std::rethrow_exception(ep);
-	} catch (const std::exception &e) {
-		LogError(e, msg);
-	} catch (...) {
-		FormatError(exception_domain,
-			    "%s: Unrecognized exception", msg);
-	}
+	LogFormat(level, exception_domain, "%s: %s", msg,
+		  GetFullMessage(ep).c_str());
 }
 
 void
-FormatError(const std::exception_ptr &ep, const char *fmt, ...) noexcept
+LogFormat(LogLevel level, const std::exception_ptr &ep, const char *fmt, ...) noexcept
 {
 	char msg[1024];
 	va_list ap;
@@ -168,13 +136,13 @@ FormatError(const std::exception_ptr &ep, const char *fmt, ...) noexcept
 	vsnprintf(msg, sizeof(msg), fmt, ap);
 	va_end(ap);
 
-	LogError(ep, msg);
+	Log(level, ep, msg);
 }
 
 void
 LogErrno(const Domain &domain, int e, const char *msg) noexcept
 {
-	LogFormat(domain, LogLevel::ERROR, "%s: %s", msg, strerror(e));
+	LogFormat(LogLevel::ERROR, domain, "%s: %s", msg, strerror(e));
 }
 
 void

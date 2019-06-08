@@ -110,9 +110,10 @@ public:
 	}
 
 	/* virtual methods from InputStream */
-	bool IsEOF() noexcept override;
-	size_t Read(void *ptr, size_t size) override;
-	void Seek(offset_type offset) override;
+	bool IsEOF() const noexcept override;
+	size_t Read(std::unique_lock<Mutex> &lock,
+		    void *ptr, size_t size) override;
+	void Seek(std::unique_lock<Mutex> &lock, offset_type offset) override;
 };
 
 InputStreamPtr
@@ -130,7 +131,7 @@ ZzipArchiveFile::OpenStream(const char *pathname,
 }
 
 size_t
-ZzipInputStream::Read(void *ptr, size_t read_size)
+ZzipInputStream::Read(std::unique_lock<Mutex> &, void *ptr, size_t read_size)
 {
 	const ScopeUnlock unlock(mutex);
 
@@ -143,13 +144,13 @@ ZzipInputStream::Read(void *ptr, size_t read_size)
 }
 
 bool
-ZzipInputStream::IsEOF() noexcept
+ZzipInputStream::IsEOF() const noexcept
 {
 	return offset_type(zzip_tell(file)) == size;
 }
 
 void
-ZzipInputStream::Seek(offset_type new_offset)
+ZzipInputStream::Seek(std::unique_lock<Mutex> &, offset_type new_offset)
 {
 	const ScopeUnlock unlock(mutex);
 

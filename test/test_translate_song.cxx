@@ -17,7 +17,7 @@
 #include "storage/StorageInterface.hxx"
 #include "storage/plugins/LocalStorage.hxx"
 #include "Mapper.hxx"
-#include "util/ChronoUtil.hxx"
+#include "time/ChronoUtil.hxx"
 
 #include <gtest/gtest.h>
 
@@ -25,7 +25,7 @@
 #include <stdio.h>
 
 void
-Log(const Domain &domain, gcc_unused LogLevel level, const char *msg) noexcept
+Log(LogLevel, const Domain &domain, const char *msg) noexcept
 {
 	fprintf(stderr, "[%s] %s\n", domain.GetName(), msg);
 }
@@ -96,7 +96,7 @@ DatabaseDetachSong(gcc_unused const Database &db,
 }
 
 bool
-DetachedSong::LoadFile(Path path) noexcept
+DetachedSong::LoadFile(Path path)
 {
 	if (path.ToUTF8() == uri1) {
 		SetTag(MakeTag1a());

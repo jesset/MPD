@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2017 Content Management AG
+ * Copyright 2007-2019 Content Management AG
  * All rights reserved.
  *
  * author: Max Kellermann <mk@cm4all.com>
@@ -33,16 +33,22 @@
 #ifndef TIME_CONVERT_HXX
 #define TIME_CONVERT_HXX
 
+#include "util/Compiler.h"
+
 #include <chrono>
 
 /**
  * Convert a UTC-based time point to a UTC-based "struct tm".
+ *
+ * Throws on error.
  */
 struct tm
 GmTime(std::chrono::system_clock::time_point tp);
 
 /**
  * Convert a UTC-based time point to a local "struct tm".
+ *
+ * Throws on error.
  */
 struct tm
 LocalTime(std::chrono::system_clock::time_point tp);
@@ -52,15 +58,21 @@ LocalTime(std::chrono::system_clock::time_point tp);
 /**
  * Convert a UTC-based "struct tm" to a UTC-based time point.
  */
+gcc_pure
 std::chrono::system_clock::time_point
-TimeGm(struct tm &tm);
+TimeGm(struct tm &tm) noexcept;
 
 #endif
 
 /**
  * Convert a local "struct tm" to a UTC-based time point.
  */
+gcc_pure
 std::chrono::system_clock::time_point
-MakeTime(struct tm &tm);
+MakeTime(struct tm &tm) noexcept;
+
+gcc_pure
+std::chrono::steady_clock::duration
+ToSteadyClockDuration(const struct timeval &tv) noexcept;
 
 #endif

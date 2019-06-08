@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,6 +20,7 @@
 #ifndef MPD_SONG_HXX
 #define MPD_SONG_HXX
 
+#include "Ptr.hxx"
 #include "Chrono.hxx"
 #include "tag/Tag.hxx"
 #include "AudioFormat.hxx"
@@ -29,8 +30,6 @@
 #include <boost/intrusive/list.hpp>
 
 #include <string>
-
-#include <time.h>
 
 struct LightSong;
 struct Directory;
@@ -46,12 +45,6 @@ struct Song {
 	static constexpr auto link_mode = boost::intrusive::normal_link;
 	typedef boost::intrusive::link_mode<link_mode> LinkMode;
 	typedef boost::intrusive::list_member_hook<LinkMode> Hook;
-
-	struct Disposer {
-		void operator()(Song *song) const {
-			song->Free();
-		}
-	};
 
 	/**
 	 * Pointers to the siblings of this directory within the
@@ -100,33 +93,40 @@ struct Song {
 	 */
 	char uri[sizeof(int)];
 
-	Song(const char *_uri, size_t uri_length, Directory &parent);
-	~Song();
+	Song(const char *_uri, size_t uri_length, Directory &parent) noexcept;
+	~Song() noexcept;
 
-	gcc_malloc gcc_returns_nonnull
-	static Song *NewFrom(DetachedSong &&other, Directory &parent);
+	static SongPtr NewFrom(DetachedSong &&other, Directory &parent) noexcept;
 
 	/** allocate a new song with a local file name */
-	gcc_malloc gcc_returns_nonnull
-	static Song *NewFile(const char *path_utf8, Directory &parent);
+	static SongPtr NewFile(const char *path_utf8, Directory &parent) noexcept;
 
 	/**
 	 * allocate a new song structure with a local file name and attempt to
 	 * load its metadata.  If all decoder plugin fail to read its meta
 	 * data, nullptr is returned.
+	 *
+	 * Throws on error.
+	 *
+	 * @return the song on success, nullptr if the file was not
+	 * recognized
 	 */
-	gcc_malloc
-	static Song *LoadFile(Storage &storage, const char *name_utf8,
-			      Directory &parent) noexcept;
+	static SongPtr LoadFile(Storage &storage, const char *name_utf8,
+				Directory &parent);
 
-	void Free();
+	void Free() noexcept;
 
-	bool UpdateFile(Storage &storage) noexcept;
+	/**
+	 * Throws on error.
+	 *
+	 * @return true on success, false if the file was not recognized
+	 */
+	bool UpdateFile(Storage &storage);
 
 #ifdef ENABLE_ARCHIVE
-	static Song *LoadFromArchive(ArchiveFile &archive,
-				     const char *name_utf8,
-				     Directory &parent) noexcept;
+	static SongPtr LoadFromArchive(ArchiveFile &archive,
+				       const char *name_utf8,
+				       Directory &parent) noexcept;
 	bool UpdateFileInArchive(ArchiveFile &archive) noexcept;
 #endif
 

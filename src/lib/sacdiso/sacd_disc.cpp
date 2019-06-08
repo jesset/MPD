@@ -24,6 +24,7 @@
 #include <malloc.h>
 #include <string.h>
 #include "sacd_disc.h"
+#include "util/StringView.hxx"
 
 using namespace std;
 

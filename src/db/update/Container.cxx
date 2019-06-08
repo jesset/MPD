@@ -104,13 +104,13 @@ UpdateWalk::UpdateContainerFile(Directory &directory,
 	for (auto plugin : plugins) {
 		try {
 			auto v = plugin->container_scan(pathname);
-
 			if (v.empty()) {
+				editor.LockDeleteDirectory(contdir);
 				continue;
 			}
 
 			for (auto &vtrack : v) {
-				Song *song = Song::NewFrom(std::move(vtrack), *contdir);
+				auto song = Song::NewFrom(std::move(vtrack), *contdir);
 
 				// shouldn't be necessary but it's there..
 				song->mtime = info.mtime;
@@ -119,7 +119,7 @@ UpdateWalk::UpdateContainerFile(Directory &directory,
 
 				{
 					const ScopeDatabaseLock protect;
-					contdir->AddSong(song);
+					contdir->AddSong(std::move(song));
 					track_count++;
 				}
 

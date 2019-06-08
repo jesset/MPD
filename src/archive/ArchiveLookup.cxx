@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,12 +18,10 @@
  */
 
 #include "ArchiveLookup.hxx"
-#include "ArchiveDomain.hxx"
-#include "Log.hxx"
+#include "fs/FileInfo.hxx"
+#include "system/Error.hxx"
 
 #include <string.h>
-#include <sys/stat.h>
-#include <errno.h>
 
 gcc_pure
 static char *
@@ -36,55 +34,32 @@ FindSlash(char *p, size_t i) noexcept
 	return nullptr;
 }
 
-gcc_pure
-static const char *
-FindSuffix(const char *p, const char *i) noexcept
-{
-	for (; i > p; --i) {
-		if (*i == '.')
-			return i + 1;
-	}
-
-	return nullptr;
-}
-
-bool
-archive_lookup(char *pathname, const char **archive,
-	       const char **inpath, const char **suffix)
+ArchiveLookupResult
+archive_lookup(char *pathname)
 {
 	size_t idx = strlen(pathname);
 
 	char *slash = nullptr;
 
 	while (true) {
-		//try to stat if its real directory
-		struct stat st_info;
-		if (stat(pathname, &st_info) == -1) {
-			if (errno != ENOTDIR) {
-				FormatErrno(archive_domain,
-					    "Failed to stat %s", pathname);
-				return false;
-			}
-		} else {
+		try {
+			//try to stat if its real directory
+			const FileInfo file_info(Path::FromFS(pathname));
+
 			//is something found ins original path (is not an archive)
 			if (slash == nullptr)
-				return false;
+				return {};
 
 			//its a file ?
-			if (S_ISREG(st_info.st_mode)) {
+			if (file_info.IsRegular()) {
 				//so the upper should be file
-				*archive = pathname;
-				*inpath = slash + 1;
-
-				//try to get suffix
-				*suffix = FindSuffix(pathname, slash - 1);
-				return true;
+				return {Path::FromFS(pathname), Path::FromFS(slash + 1)};
 			} else {
-				FormatError(archive_domain,
-					    "Not a regular file: %s",
-					    pathname);
-				return false;
+				return {};
 			}
+		} catch (const std::system_error &e) {
+			if (!IsPathNotFound(e))
+				throw;
 		}
 
 		//find one dir up
@@ -93,7 +68,7 @@ archive_lookup(char *pathname, const char **archive,
 
 		slash = FindSlash(pathname, idx - 1);
 		if (slash == nullptr)
-			return false;
+			return {};
 
 		*slash = 0;
 		idx = slash - pathname;

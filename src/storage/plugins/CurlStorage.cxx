@@ -33,13 +33,13 @@
 #include "event/DeferEvent.hxx"
 #include "thread/Mutex.hxx"
 #include "thread/Cond.hxx"
+#include "time/ChronoUtil.hxx"
+#include "time/Parser.hxx"
 #include "util/ASCII.hxx"
-#include "util/ChronoUtil.hxx"
 #include "util/IterableSplitString.hxx"
 #include "util/RuntimeError.hxx"
 #include "util/StringCompare.hxx"
 #include "util/StringFormat.hxx"
-#include "util/TimeParser.hxx"
 #include "util/UriUtil.hxx"
 
 #include <algorithm>
@@ -125,8 +125,7 @@ public:
 
 	void Wait() {
 		std::unique_lock<Mutex> lock(mutex);
-		while (!done)
-			cond.wait(lock);
+		cond.wait(lock, [this]{ return done; });
 
 		if (postponed_error)
 			std::rethrow_exception(postponed_error);

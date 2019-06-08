@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -61,7 +61,7 @@ ToAndroidLogLevel(LogLevel log_level) noexcept
 
 #else
 
-static LogLevel log_threshold = LogLevel::INFO;
+static LogLevel log_threshold = LogLevel::DEFAULT;
 
 static bool enable_timestamp;
 
@@ -176,7 +176,7 @@ FileLog(const Domain &domain, const char *message) noexcept
 #endif /* !ANDROID */
 
 void
-Log(const Domain &domain, LogLevel level, const char *msg) noexcept
+Log(LogLevel level, const Domain &domain, const char *msg) noexcept
 {
 #ifdef ANDROID
 	__android_log_print(ToAndroidLogLevel(level), "MPD",

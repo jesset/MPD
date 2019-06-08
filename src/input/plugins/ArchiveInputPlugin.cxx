@@ -18,20 +18,16 @@
  */
 
 #include "ArchiveInputPlugin.hxx"
-#include "archive/ArchiveDomain.hxx"
 #include "archive/ArchiveLookup.hxx"
 #include "archive/ArchiveList.hxx"
 #include "archive/ArchivePlugin.hxx"
 #include "archive/ArchiveFile.hxx"
-#include "../InputPlugin.hxx"
 #include "../InputStream.hxx"
 #include "fs/Path.hxx"
 #include "Log.hxx"
 #include "util/ScopeExit.hxx"
 
-#include <stdexcept>
-
-#include <stdlib.h>
+#include <string.h>
 
 InputStreamPtr
 OpenArchiveInputStream(Path path, Mutex &mutex)
@@ -44,21 +40,28 @@ OpenArchiveInputStream(Path path, Mutex &mutex)
 	};
 
 	// archive_lookup will modify pname when true is returned
-	const char *archive, *filename, *suffix;
-	if (!archive_lookup(pname, &archive, &filename, &suffix)) {
-		FormatDebug(archive_domain,
-			    "not an archive, lookup %s failed", pname);
+	ArchiveLookupResult l;
+	try {
+		l = archive_lookup(pname);
+		if (l.archive.IsNull()) {
+			return nullptr;
+		}
+	} catch (...) {
+		LogFormat(LogLevel::DEBUG, std::current_exception(),
+			  "not an archive, lookup %s failed", pname);
 		return nullptr;
 	}
+
+	const char *suffix = l.archive.GetSuffix();
+	if (suffix == nullptr)
+		return nullptr;
 
 	//check which archive plugin to use (by ext)
 	arplug = archive_plugin_from_suffix(suffix);
 	if (!arplug) {
-		FormatWarning(archive_domain,
-			      "can't handle archive %s", archive);
 		return nullptr;
 	}
 
-	return archive_file_open(arplug, Path::FromFS(archive))
-		->OpenStream(filename, mutex);
+	return archive_file_open(arplug, l.archive)
+		->OpenStream(l.inside.c_str(), mutex);
 }

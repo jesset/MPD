@@ -107,11 +107,10 @@ GetChromaprintCommand::DecodeStream(InputStream &input_stream,
 
 	/* rewind the stream, so each plugin gets a fresh start */
 	try {
-		input_stream.Rewind();
+		input_stream.LockRewind();
 	} catch (...) {
 	}
 
-	const ScopeUnlock unlock(mutex);
 	plugin.StreamDecode(*this, input_stream);
 }
 
@@ -306,7 +305,7 @@ GetChromaprintCommand::Read(InputStream &is, void *buffer, size_t length)
 		cond.wait(lock);
 	}
 
-	return is.Read(buffer, length);
+	return is.Read(lock, buffer, length);
 }
 
 CommandResult

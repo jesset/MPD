@@ -33,6 +33,7 @@
 #include "CheckAudioFormat.hxx"
 #include "util/bit_reverse.h"
 #include "util/ByteOrder.hxx"
+#include "util/StringView.hxx"
 #include "tag/Handler.hxx"
 #include "DsdLib.hxx"
 #include "Log.hxx"
@@ -185,34 +186,34 @@ dsdiff_read_prop(DecoderClient *client, InputStream &is,
 }
 
 static void
-dsdiff_handle_native_tag(InputStream &is,
+dsdiff_handle_native_tag(DecoderClient *client, InputStream &is,
 			 TagHandler &handler,
 			 offset_type tagoffset,
 			 TagType type)
 {
-	if (!dsdlib_skip_to(nullptr, is, tagoffset))
+	if (!dsdlib_skip_to(client, is, tagoffset))
 		return;
 
 	struct dsdiff_native_tag metatag;
 
-	if (!decoder_read_full(nullptr, is, &metatag, sizeof(metatag)))
+	if (!decoder_read_full(client, is, &metatag, sizeof(metatag)))
 		return;
 
 	uint32_t length = FromBE32(metatag.size);
 
 	/* Check and limit size of the tag to prevent a stack overflow */
-	if (length == 0 || length > 60)
+	constexpr size_t MAX_LENGTH = 1024;
+	if (length == 0 || length > MAX_LENGTH)
 		return;
 
-	char string[length + 1];
+	char string[MAX_LENGTH];
 	char *label;
 	label = string;
 
-	if (!decoder_read_full(nullptr, is, label, (size_t)length))
+	if (!decoder_read_full(client, is, label, (size_t)length))
 		return;
 
-	string[length] = '\0';
-	handler.OnTag(type, label);
+	handler.OnTag(type, {label, length});
 	return;
 }
 
@@ -291,11 +292,11 @@ dsdiff_read_metadata_extra(DecoderClient *client, InputStream &is,
 #endif
 
 	if (artist_offset != 0)
-		dsdiff_handle_native_tag(is, handler,
+		dsdiff_handle_native_tag(client, is, handler,
 					 artist_offset, TAG_ARTIST);
 
 	if (title_offset != 0)
-		dsdiff_handle_native_tag(is, handler,
+		dsdiff_handle_native_tag(client, is, handler,
 					 title_offset, TAG_TITLE);
 	return true;
 }

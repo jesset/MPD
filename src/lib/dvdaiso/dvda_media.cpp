@@ -136,7 +136,7 @@ bool dvda_media_stream_t::close() {
 
 bool dvda_media_stream_t::seek(int64_t position) {
 	try {
-		is->Seek(position);
+		is->LockSeek(position);
 	}
 	catch (const std::exception &e) {
 		LogError(e);
@@ -148,7 +148,7 @@ bool dvda_media_stream_t::seek(int64_t position) {
 size_t dvda_media_stream_t::read(void* data, size_t size) {
 	size_t read_bytes;
 	try {
-		read_bytes = is->Read(data, size);
+		read_bytes = is->LockRead(data, size);
 	}
 	catch (const std::exception &e) {
 		LogError(e);
@@ -160,7 +160,7 @@ size_t dvda_media_stream_t::read(void* data, size_t size) {
 int64_t dvda_media_stream_t::skip(int64_t bytes) {
 	int64_t position = is->GetOffset() + bytes;
 	try {
-		is->Seek(position);
+		is->LockSeek(position);
 	}
 	catch (const std::exception &e) {
 		LogError(e);

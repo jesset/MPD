@@ -1,7 +1,5 @@
 archive_api = static_library(
   'archive_api',
-  'ArchiveDomain.cxx',
-  'ArchiveLookup.cxx',
   'ArchiveList.cxx',
   include_directories: inc,
 )
@@ -20,6 +18,7 @@ endif
 
 archive_glue = static_library(
   'archive_glue',
+  'ArchiveLookup.cxx',
   'ArchivePlugin.cxx',
   '../input/plugins/ArchiveInputPlugin.cxx',
   include_directories: inc,

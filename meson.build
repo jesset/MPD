@@ -37,6 +37,8 @@ test_common_flags = [
   '-Wall',
   '-Wextra',
 
+  '-Wvla',
+
   '-fvisibility=hidden',
 
   '-ffast-math',
@@ -321,6 +323,7 @@ if enable_database
 endif
 
 subdir('src/util')
+subdir('src/time')
 subdir('src/system')
 subdir('src/thread')
 subdir('src/event')

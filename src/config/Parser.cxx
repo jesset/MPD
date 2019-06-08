@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,23 +18,87 @@
  */
 
 #include "Parser.hxx"
+#include "util/RuntimeError.hxx"
+#include "util/StringStrip.hxx"
 #include "util/StringUtil.hxx"
 
 bool
-get_bool(const char *value, bool *value_r)
+ParseBool(const char *value)
 {
 	static const char *const t[] = { "yes", "true", "1", nullptr };
 	static const char *const f[] = { "no", "false", "0", nullptr };
 
-	if (StringArrayContainsCase(t, value)) {
-		*value_r = true;
+	if (StringArrayContainsCase(t, value))
 		return true;
+
+	if (StringArrayContainsCase(f, value))
+		return false;
+
+	throw FormatRuntimeError("Not a valid boolean (\"yes\" or \"no\"): \"%s\"", value);
+}
+
+template<size_t OPERAND>
+static size_t
+Multiply(size_t value)
+{
+	static constexpr size_t MAX_VALUE = SIZE_MAX / OPERAND;
+	if (value > MAX_VALUE)
+		throw std::runtime_error("Value too large");
+
+	return value * OPERAND;
+}
+
+size_t
+ParseSize(const char *s, size_t default_factor)
+{
+	char *endptr;
+	size_t value = strtoul(s, &endptr, 10);
+	if (endptr == s)
+		throw std::runtime_error("Failed to parse integer");
+
+	static constexpr size_t KILO = 1024;
+	static constexpr size_t MEGA = 1024 * KILO;
+	static constexpr size_t GIGA = 1024 * MEGA;
+
+	s = StripLeft(endptr);
+
+	bool apply_factor = false;
+
+	switch (*s) {
+	case 'k':
+		value = Multiply<KILO>(value);
+		++s;
+		break;
+
+	case 'M':
+		value = Multiply<MEGA>(value);
+		++s;
+		break;
+
+	case 'G':
+		value = Multiply<GIGA>(value);
+		++s;
+		break;
+
+	case '\0':
+		apply_factor = true;
+		break;
+
+	default:
+		throw std::runtime_error("Unknown size suffix");
 	}
 
-	if (StringArrayContainsCase(f, value)) {
-		*value_r = false;
-		return true;
+	/* ignore 'B' for "byte" */
+	if (*s == 'B') {
+		apply_factor = false;
+		++s;
 	}
 
-	return false;
+	if (*s != '\0')
+		throw std::runtime_error("Unknown size suffix");
+
+	if (apply_factor)
+		value *= default_factor;
+
+	return value;
 }

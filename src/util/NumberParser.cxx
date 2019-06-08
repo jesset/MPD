@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2009-2015 Max Kellermann <max.kellermann@gmail.com>
+ * Copyright 2009-2019 Max Kellermann <max.kellermann@gmail.com>
+ * http://www.musicpd.org
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,50 +28,23 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef THREAD_POSIX_MUTEX_HXX
-#define THREAD_POSIX_MUTEX_HXX
+#include "NumberParser.hxx"
+#include "StringView.hxx"
+#include "Macros.hxx"
 
-#include <pthread.h>
+#include <algorithm>
 
-/**
- * Low-level wrapper for a pthread_mutex_t.
- */
-class PosixMutex {
-	friend class PosixCond;
+int64_t
+ParseInt64(StringView s, const char **endptr_r, int base) noexcept
+{
+	char buffer[32];
+	*std::copy_n(s.data, std::min(s.size, ARRAY_SIZE(buffer) - 1),
+		     buffer) = 0;
 
-	pthread_mutex_t mutex;
+	char *endptr;
+	const auto result = ParseInt64(buffer, &endptr, base);
+	if (endptr_r != nullptr)
+		*endptr_r = s.data + (endptr - buffer);
 
-public:
-#if defined(__GLIBC__) && !defined(__gnu_hurd__)
-	/* optimized constexpr constructor for pthread implementations
-	   that support it */
-	constexpr PosixMutex():mutex(PTHREAD_MUTEX_INITIALIZER) {}
-#else
-	/* slow fallback for pthread implementations that are not
-	   compatible with "constexpr" */
-	PosixMutex() noexcept {
-		pthread_mutex_init(&mutex, nullptr);
-	}
-
-	~PosixMutex() noexcept {
-		pthread_mutex_destroy(&mutex);
-	}
-#endif
-
-	PosixMutex(const PosixMutex &other) = delete;
-	PosixMutex &operator=(const PosixMutex &other) = delete;
-
-	void lock() noexcept {
-		pthread_mutex_lock(&mutex);
-	}
-
-	bool try_lock() noexcept {
-		return pthread_mutex_trylock(&mutex) == 0;
-	}
-
-	void unlock() noexcept {
-		pthread_mutex_unlock(&mutex);
-	}
-};
-
-#endif
+	return result;
+}

@@ -48,9 +48,11 @@ public:
 	}
 
 	/* virtual methods from InputStream */
-	bool IsEOF() noexcept override;
-	size_t Read(void *ptr, size_t size) override;
-	void Seek(offset_type offset) override;
+	bool IsEOF() const noexcept override;
+	size_t Read(std::unique_lock<Mutex> &lock,
+		    void *ptr, size_t size) override;
+	void Seek(std::unique_lock<Mutex> &lock,
+		  offset_type offset) override;
 };
 
 gcc_const
@@ -79,7 +81,8 @@ input_ffmpeg_open(const char *uri,
 }
 
 size_t
-FfmpegInputStream::Read(void *ptr, size_t read_size)
+FfmpegInputStream::Read(std::unique_lock<Mutex> &,
+			void *ptr, size_t read_size)
 {
 	size_t result;
 
@@ -93,13 +96,13 @@ FfmpegInputStream::Read(void *ptr, size_t read_size)
 }
 
 bool
-FfmpegInputStream::IsEOF() noexcept
+FfmpegInputStream::IsEOF() const noexcept
 {
 	return io.IsEOF();
 }
 
 void
-FfmpegInputStream::Seek(offset_type new_offset)
+FfmpegInputStream::Seek(std::unique_lock<Mutex> &, offset_type new_offset)
 {
 	uint64_t result;
 

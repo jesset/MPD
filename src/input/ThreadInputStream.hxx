@@ -91,10 +91,11 @@ public:
 	void Start();
 
 	/* virtual methods from InputStream */
-	void Check() override final;
-	bool IsEOF() noexcept final;
-	bool IsAvailable() noexcept final;
-	size_t Read(void *ptr, size_t size) override final;
+	void Check() final;
+	bool IsEOF() const noexcept final;
+	bool IsAvailable() const noexcept final;
+	size_t Read(std::unique_lock<Mutex> &lock,
+		    void *ptr, size_t size) override final;
 
 protected:
 	/**

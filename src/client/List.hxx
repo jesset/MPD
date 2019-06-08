@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,8 +25,9 @@
 #include <boost/intrusive/list.hpp>
 
 class ClientList {
-	typedef boost::intrusive::list<Client,
-				       boost::intrusive::constant_time_size<true>> List;
+	using List =
+		boost::intrusive::list<Client,
+				       boost::intrusive::constant_time_size<true>>;
 
 	const unsigned max_size;
 
@@ -36,15 +37,13 @@ public:
 	explicit ClientList(unsigned _max_size) noexcept
 		:max_size(_max_size) {}
 
-	~ClientList() noexcept {
-		CloseAll();
-	}
+	~ClientList() noexcept;
 
-	List::iterator begin() noexcept {
+	auto begin() noexcept {
 		return list.begin();
 	}
 
-	List::iterator end() noexcept {
+	auto end() noexcept {
 		return list.end();
 	}
 
@@ -57,8 +56,6 @@ public:
 	}
 
 	void Remove(Client &client) noexcept;
-
-	void CloseAll() noexcept;
 
 	void IdleAdd(unsigned flags) noexcept;
 };

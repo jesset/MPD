@@ -148,6 +148,7 @@ public:
 		:InputStream(_uri, _mutex),
 		 iso(_iso), statbuf(_statbuf) {
 		size = statbuf->size;
+		seekable = true;
 		SetReady();
 	}
 
@@ -156,8 +157,13 @@ public:
 	}
 
 	/* virtual methods from InputStream */
-	bool IsEOF() noexcept override;
-	size_t Read(void *ptr, size_t size) override;
+	bool IsEOF() const noexcept override;
+	size_t Read(std::unique_lock<Mutex> &lock,
+		    void *ptr, size_t size) override;
+
+	void Seek(std::unique_lock<Mutex> &, offset_type new_offset) override {
+		offset = new_offset;
+	}
 };
 
 InputStreamPtr
@@ -174,7 +180,8 @@ Iso9660ArchiveFile::OpenStream(const char *pathname,
 }
 
 size_t
-Iso9660InputStream::Read(void *ptr, size_t read_size)
+Iso9660InputStream::Read(std::unique_lock<Mutex> &,
+			 void *ptr, size_t read_size)
 {
 	const ScopeUnlock unlock(mutex);
 
@@ -208,7 +215,7 @@ Iso9660InputStream::Read(void *ptr, size_t read_size)
 }
 
 bool
-Iso9660InputStream::IsEOF() noexcept
+Iso9660InputStream::IsEOF() const noexcept
 {
 	return offset == size;
 }

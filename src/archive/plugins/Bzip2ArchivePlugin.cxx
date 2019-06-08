@@ -71,8 +71,9 @@ public:
 	~Bzip2InputStream();
 
 	/* virtual methods from InputStream */
-	bool IsEOF() noexcept override;
-	size_t Read(void *ptr, size_t size) override;
+	bool IsEOF() const noexcept override;
+	size_t Read(std::unique_lock<Mutex> &lock,
+		    void *ptr, size_t size) override;
 
 private:
 	void Open();
@@ -147,7 +148,7 @@ Bzip2InputStream::FillBuffer()
 }
 
 size_t
-Bzip2InputStream::Read(void *ptr, size_t length)
+Bzip2InputStream::Read(std::unique_lock<Mutex> &, void *ptr, size_t length)
 {
 	const ScopeUnlock unlock(mutex);
 
@@ -182,7 +183,7 @@ Bzip2InputStream::Read(void *ptr, size_t length)
 }
 
 bool
-Bzip2InputStream::IsEOF() noexcept
+Bzip2InputStream::IsEOF() const noexcept
 {
 	return eof;
 }

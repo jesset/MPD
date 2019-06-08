@@ -23,14 +23,16 @@
 #include "tag/Handler.hxx"
 #include "tag/ParseName.hxx"
 #include "ReplayGainInfo.hxx"
+#include "util/NumberParser.hxx"
+#include "util/StringView.hxx"
+
+#include <string>
 
 #include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
 
 gcc_pure
 static TagType
-ParseOpusTagName(const char *name) noexcept
+ParseOpusTagName(StringView name) noexcept
 {
 	TagType type = tag_name_parse_i(name);
 	if (type != TAG_NUM_OF_ITEM_TYPES)
@@ -40,25 +42,25 @@ ParseOpusTagName(const char *name) noexcept
 }
 
 static void
-ScanOneOpusTag(const char *name, const char *value,
+ScanOneOpusTag(StringView name, StringView value,
 	       ReplayGainInfo *rgi,
 	       TagHandler &handler) noexcept
 {
-	if (rgi != nullptr && strcmp(name, "R128_TRACK_GAIN") == 0) {
+	if (rgi != nullptr && name.Equals("R128_TRACK_GAIN")) {
 		/* R128_TRACK_GAIN is a Q7.8 fixed point number in
 		   dB */
 
-		char *endptr;
-		long l = strtol(value, &endptr, 10);
-		if (endptr > value && *endptr == 0)
+		const char *endptr;
+		const auto l = ParseInt64(value, &endptr, 10);
+		if (endptr > value.begin() && endptr == value.end())
 			rgi->track.gain = double(l) / 256.;
-	} else if (rgi != nullptr && strcmp(name, "R128_ALBUM_GAIN") == 0) {
+	} else if (rgi != nullptr && name.Equals("R128_ALBUM_GAIN")) {
 		/* R128_ALBUM_GAIN is a Q7.8 fixed point number in
 		   dB */
 
-		char *endptr;
-		long l = strtol(value, &endptr, 10);
-		if (endptr > value && *endptr == 0)
+		const char *endptr;
+		const auto l = ParseInt64(value, &endptr, 10);
+		if (endptr > value.begin() && endptr == value.end())
 			rgi->album.gain = double(l) / 256.;
 	}
 
@@ -91,18 +93,18 @@ ScanOpusTags(const void *data, size_t size,
 		return false;
 
 	while (n-- > 0) {
-		char *p = r.ReadString();
-		if (p == nullptr)
+		const auto s = r.ReadString();
+		if (s == nullptr)
 			return false;
 
-		char *eq = strchr(p, '=');
-		if (eq != nullptr && eq > p) {
-			*eq = 0;
+		if (s.size >= 4096)
+			continue;
 
-			ScanOneOpusTag(p, eq + 1, rgi, handler);
-		}
+		const auto split = s.Split('=');
+		if (split.first.empty() || split.second.IsNull())
+			continue;
 
-		delete[] p;
+		ScanOneOpusTag(split.first, split.second, rgi, handler);
 	}
 
 	return true;

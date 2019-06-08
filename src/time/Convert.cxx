@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2017 Content Management AG
+ * Copyright 2007-2019 Content Management AG
  * All rights reserved.
  *
  * author: Max Kellermann <mk@cm4all.com>
@@ -30,26 +30,62 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef TIME_ISO8601_HXX
-#define TIME_ISO8601_HXX
+#include "Convert.hxx"
 
-#include "StringBuffer.hxx"
-#include "Compiler.h"
+#include <stdexcept>
 
-#include <string>
-#include <chrono>
+#include <time.h>
+#include <sys/time.h> /* for struct timeval */
 
-struct tm;
+struct tm
+GmTime(std::chrono::system_clock::time_point tp)
+{
+	const time_t t = std::chrono::system_clock::to_time_t(tp);
+#ifdef _WIN32
+	const struct tm *tm = gmtime(&t);
+#else
+	struct tm buffer, *tm = gmtime_r(&t, &buffer);
+#endif
+	if (tm == nullptr)
+		throw std::runtime_error("gmtime_r() failed");
 
-gcc_pure
-StringBuffer<64>
-FormatISO8601(const struct tm &tm) noexcept;
+	return *tm;
+}
 
-gcc_pure
-StringBuffer<64>
-FormatISO8601(std::chrono::system_clock::time_point tp);
+struct tm
+LocalTime(std::chrono::system_clock::time_point tp)
+{
+	const time_t t = std::chrono::system_clock::to_time_t(tp);
+#ifdef _WIN32
+	const struct tm *tm = localtime(&t);
+#else
+	struct tm buffer, *tm = localtime_r(&t, &buffer);
+#endif
+	if (tm == nullptr)
+		throw std::runtime_error("localtime_r() failed");
+
+	return *tm;
+}
+
+#ifdef __GLIBC__
 
 std::chrono::system_clock::time_point
-ParseISO8601(const char *s);
+TimeGm(struct tm &tm) noexcept
+{
+	return std::chrono::system_clock::from_time_t(timegm(&tm));
+}
 
 #endif
+
+std::chrono::system_clock::time_point
+MakeTime(struct tm &tm) noexcept
+{
+	return std::chrono::system_clock::from_time_t(mktime(&tm));
+}
+
+std::chrono::steady_clock::duration
+ToSteadyClockDuration(const struct timeval &tv) noexcept
+{
+	return std::chrono::steady_clock::duration(std::chrono::seconds(tv.tv_sec)) +
+		std::chrono::steady_clock::duration(std::chrono::microseconds(tv.tv_usec));
+}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,6 +18,7 @@
  */
 
 #include "Song.hxx"
+#include "Disposer.hxx"
 #include "Directory.hxx"
 #include "tag/Tag.hxx"
 #include "util/VarSize.hxx"
@@ -27,18 +28,20 @@
 #include <assert.h>
 #include <string.h>
 
-inline Song::Song(const char *_uri, size_t uri_length, Directory &_parent)
+inline
+Song::Song(const char *_uri, size_t uri_length, Directory &_parent) noexcept
 	:parent(&_parent)
 {
 	memcpy(uri, _uri, uri_length + 1);
 }
 
-inline Song::~Song()
+inline
+Song::~Song() noexcept
 {
 }
 
-static Song *
-song_alloc(const char *uri, Directory &parent)
+static SongPtr
+song_alloc(const char *uri, Directory &parent) noexcept
 {
 	size_t uri_length;
 
@@ -46,15 +49,16 @@ song_alloc(const char *uri, Directory &parent)
 	uri_length = strlen(uri);
 	assert(uri_length);
 
-	return NewVarSize<Song>(sizeof(Song::uri),
-				uri_length + 1,
-				uri, uri_length, parent);
+	auto *song = NewVarSize<Song>(sizeof(Song::uri),
+				      uri_length + 1,
+				      uri, uri_length, parent);
+	return SongPtr(song);
 }
 
-Song *
-Song::NewFrom(DetachedSong &&other, Directory &parent)
+SongPtr
+Song::NewFrom(DetachedSong &&other, Directory &parent) noexcept
 {
-	Song *song = song_alloc(other.GetURI(), parent);
+	SongPtr song(song_alloc(other.GetURI(), parent));
 	song->tag = std::move(other.WritableTag());
 	song->mtime = other.GetLastModified();
 	song->start_time = other.GetStartTime();
@@ -62,16 +66,22 @@ Song::NewFrom(DetachedSong &&other, Directory &parent)
 	return song;
 }
 
-Song *
-Song::NewFile(const char *path, Directory &parent)
+SongPtr
+Song::NewFile(const char *path, Directory &parent) noexcept
 {
-	return song_alloc(path, parent);
+	return SongPtr(song_alloc(path, parent));
 }
 
 void
-Song::Free()
+Song::Free() noexcept
 {
 	DeleteVarSize(this);
+}
+
+void
+SongDisposer::operator()(Song *song) const noexcept
+{
+	song->Free();
 }
 
 std::string
