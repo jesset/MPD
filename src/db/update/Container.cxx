@@ -105,7 +105,6 @@ UpdateWalk::UpdateContainerFile(Directory &directory,
 		try {
 			auto v = plugin->container_scan(pathname);
 			if (v.empty()) {
-				editor.LockDeleteDirectory(contdir);
 				continue;
 			}
 
@@ -125,8 +124,7 @@ UpdateWalk::UpdateContainerFile(Directory &directory,
 
 				modified = true;
 			}
-		}
-		catch (...) {
+		}	catch (...) {
 			LogError(std::current_exception());
 		}
 	}
