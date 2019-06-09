@@ -389,8 +389,12 @@ osx_output_set_device_format(AudioDeviceID dev_id, const AudioStreamBasicDescrip
 		throw FormatRuntimeError("Cannot get number of streams: %d\n", err);	
 	}	
 	
-	int n_streams = property_size / sizeof(AudioStreamID);	
-	AudioStreamID streams[n_streams];	
+	const size_t n_streams = property_size / sizeof(AudioStreamID);
+	static constexpr size_t MAX_STREAMS = 64;
+	if (n_streams > MAX_STREAMS)
+		throw std::runtime_error("Too many streams");
+
+	AudioStreamID streams[MAX_STREAMS];
 	err = AudioObjectGetPropertyData(dev_id, &aopa, 0, NULL, &property_size, streams);	
 	if (err != noErr) {	
 		throw FormatRuntimeError("Cannot get streams: %d\n", err);	
@@ -400,7 +404,7 @@ osx_output_set_device_format(AudioDeviceID dev_id, const AudioStreamBasicDescrip
 	int output_stream;
 	AudioStreamBasicDescription output_format;
 
-	for (int i = 0; i < n_streams; i++) {	
+	for (size_t i = 0; i < n_streams; i++) {
 		UInt32 direction;	
 		AudioStreamID stream = streams[i];
 		aopa.mSelector = kAudioStreamPropertyDirection;	
@@ -423,14 +427,18 @@ osx_output_set_device_format(AudioDeviceID dev_id, const AudioStreamBasicDescrip
 		if (err != noErr)
 			throw FormatRuntimeError("Unable to get format size s for stream %d. Error = %s", streams[i], err);
 
-		int format_count = property_size / sizeof(AudioStreamRangedDescription);
-		AudioStreamRangedDescription format_list[format_count];
+		const size_t format_count = property_size / sizeof(AudioStreamRangedDescription);
+		static constexpr size_t MAX_FORMATS = 256;
+		if (format_count > MAX_FORMATS)
+			throw std::runtime_error("Too many formats");
+
+		AudioStreamRangedDescription format_list[MAX_FORMATS];
 		err = AudioObjectGetPropertyData(stream, &aopa, 0, NULL, &property_size, format_list);
 		if (err != noErr)
 			throw FormatRuntimeError("Unable to get available formats for stream %d. Error = %s", streams[i], err);
 
 		float output_score = 0;
-		for (int j = 0; j < format_count; j++) {
+		for (size_t j = 0; j < format_count; j++) {
 			AudioStreamBasicDescription format_desc = format_list[j].mFormat;
 			std::string format_string;
 			
