@@ -17,15 +17,13 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#include "ArchiveLookup.hxx"
-#include "fs/FileInfo.hxx"
+#include "LookupFile.hxx"
+#include "FileInfo.hxx"
 #include "system/Error.hxx"
 
-#include <string.h>
-
 gcc_pure
-static char *
-FindSlash(char *p, size_t i) noexcept
+static PathTraitsFS::pointer_type
+FindSlash(PathTraitsFS::pointer_type p, size_t i) noexcept
 {
 	for (; i > 0; --i)
 		if (p[i] == '/')
@@ -35,16 +33,17 @@ FindSlash(char *p, size_t i) noexcept
 }
 
 ArchiveLookupResult
-archive_lookup(char *pathname)
+LookupFile(Path pathname)
 {
-	size_t idx = strlen(pathname);
+	PathTraitsFS::string buffer(pathname.c_str());
+	size_t idx = buffer.size();
 
-	char *slash = nullptr;
+	PathTraitsFS::pointer_type slash = nullptr;
 
 	while (true) {
 		try {
 			//try to stat if its real directory
-			const FileInfo file_info(Path::FromFS(pathname));
+			const FileInfo file_info(Path::FromFS(buffer.c_str()));
 
 			//is something found ins original path (is not an archive)
 			if (slash == nullptr)
@@ -53,7 +52,7 @@ archive_lookup(char *pathname)
 			//its a file ?
 			if (file_info.IsRegular()) {
 				//so the upper should be file
-				return {Path::FromFS(pathname), Path::FromFS(slash + 1)};
+				return {AllocatedPath::FromFS(buffer.c_str()), AllocatedPath::FromFS(slash + 1)};
 			} else {
 				return {};
 			}
@@ -66,12 +65,12 @@ archive_lookup(char *pathname)
 		if (slash != nullptr)
 			*slash = '/';
 
-		slash = FindSlash(pathname, idx - 1);
+		slash = FindSlash(&buffer.front(), idx - 1);
 		if (slash == nullptr)
 			return {};
 
 		*slash = 0;
-		idx = slash - pathname;
+		idx = slash - buffer.c_str();
 	}
 }
 

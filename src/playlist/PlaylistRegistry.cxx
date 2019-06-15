@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -35,6 +35,7 @@
 #include "util/MimeType.hxx"
 #include "util/UriUtil.hxx"
 #include "util/StringUtil.hxx"
+#include "util/StringView.hxx"
 #include "util/Macros.hxx"
 #include "config/Data.hxx"
 #include "config/Block.hxx"
@@ -165,11 +166,9 @@ playlist_list_open_uri(const char *uri, Mutex &mutex)
 {
 	/** this array tracks which plugins have already been tried by
 	    playlist_list_open_uri_scheme() */
-	bool tried[n_playlist_plugins];
+	bool tried[n_playlist_plugins]{};
 
 	assert(uri != nullptr);
-
-	memset(tried, false, sizeof(tried));
 
 	auto playlist = playlist_list_open_uri_scheme(uri, mutex, tried);
 	if (playlist == nullptr)
@@ -180,10 +179,8 @@ playlist_list_open_uri(const char *uri, Mutex &mutex)
 }
 
 static std::unique_ptr<SongEnumerator>
-playlist_list_open_stream_mime2(InputStreamPtr &&is, const char *mime)
+playlist_list_open_stream_mime2(InputStreamPtr &&is, StringView mime)
 {
-	assert(mime != nullptr);
-
 	playlist_plugins_for_each_enabled(plugin) {
 		if (plugin->open_stream != nullptr &&
 		    plugin->mime_types != nullptr &&
@@ -204,22 +201,29 @@ playlist_list_open_stream_mime2(InputStreamPtr &&is, const char *mime)
 	return nullptr;
 }
 
+/**
+ * Extract the "main" part of a MIME type string, i.e. the portion
+ * before the semicolon (if one exists).
+ */
+gcc_pure
+static StringView
+ExtractMimeTypeMainPart(StringView s) noexcept
+{
+	const auto separator = s.Find(';');
+	if (separator != nullptr)
+		s.SetEnd(separator);
+
+	return s;
+}
+
 static std::unique_ptr<SongEnumerator>
 playlist_list_open_stream_mime(InputStreamPtr &&is, const char *full_mime)
 {
 	assert(full_mime != nullptr);
 
-	const char *semicolon = strchr(full_mime, ';');
-	if (semicolon == nullptr)
-		return playlist_list_open_stream_mime2(std::move(is),
-						       full_mime);
-
-	if (semicolon == full_mime)
-		return nullptr;
-
 	/* probe only the portion before the semicolon*/
-	const std::string mime(full_mime, semicolon);
-	return playlist_list_open_stream_mime2(std::move(is), mime.c_str());
+	return playlist_list_open_stream_mime2(std::move(is),
+					       ExtractMimeTypeMainPart(full_mime));
 }
 
 std::unique_ptr<SongEnumerator>

@@ -18,37 +18,28 @@
  */
 
 #include "ArchiveInputPlugin.hxx"
-#include "archive/ArchiveLookup.hxx"
 #include "archive/ArchiveList.hxx"
 #include "archive/ArchivePlugin.hxx"
 #include "archive/ArchiveFile.hxx"
 #include "../InputStream.hxx"
+#include "fs/LookupFile.hxx"
 #include "fs/Path.hxx"
 #include "Log.hxx"
-#include "util/ScopeExit.hxx"
-
-#include <string.h>
 
 InputStreamPtr
 OpenArchiveInputStream(Path path, Mutex &mutex)
 {
 	const ArchivePlugin *arplug;
 
-	char *pname = strdup(path.c_str());
-	AtScopeExit(pname) {
-		free(pname);
-	};
-
-	// archive_lookup will modify pname when true is returned
 	ArchiveLookupResult l;
 	try {
-		l = archive_lookup(pname);
+		l = LookupFile(path);
 		if (l.archive.IsNull()) {
 			return nullptr;
 		}
 	} catch (...) {
 		LogFormat(LogLevel::DEBUG, std::current_exception(),
-			  "not an archive, lookup %s failed", pname);
+			  "not an archive, lookup %s failed", path.c_str());
 		return nullptr;
 	}
 
