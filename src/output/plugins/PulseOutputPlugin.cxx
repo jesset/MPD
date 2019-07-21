@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,7 +18,6 @@
  */
 
 #include "PulseOutputPlugin.hxx"
-#include "lib/pulse/Domain.hxx"
 #include "lib/pulse/Error.hxx"
 #include "lib/pulse/LogError.hxx"
 #include "lib/pulse/LockGuard.hxx"
@@ -26,7 +25,6 @@
 #include "mixer/MixerList.hxx"
 #include "mixer/plugins/PulseMixerPlugin.hxx"
 #include "util/ScopeExit.hxx"
-#include "Log.hxx"
 
 #include <pulse/thread-mainloop.h>
 #include <pulse/context.h>
@@ -109,7 +107,7 @@ private:
 	/**
 	 * Attempt to connect asynchronously to the PulseAudio server.
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void Connect();
 
@@ -118,7 +116,7 @@ private:
 	 *
 	 * Caller must lock the main loop.
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void SetupContext();
 
@@ -140,7 +138,7 @@ private:
 	 *
 	 * Caller must lock the main loop.
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void WaitConnection();
 
@@ -149,7 +147,7 @@ private:
 	 *
 	 * Caller must lock the main loop.
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void SetupStream(const pa_sample_spec &ss);
 
@@ -163,14 +161,14 @@ private:
 	 * not.  The mainloop must be locked before calling this
 	 * function.
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void WaitStream();
 
 	/**
 	 * Sets cork mode on the stream.
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void StreamPause(bool pause);
 };

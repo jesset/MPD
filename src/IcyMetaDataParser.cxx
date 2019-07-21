@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,16 +18,13 @@
  */
 
 #include "IcyMetaDataParser.hxx"
-#include "tag/Tag.hxx"
 #include "tag/Builder.hxx"
-#include "util/Domain.hxx"
 #include "util/StringView.hxx"
-#include "Log.hxx"
+
+#include <algorithm>
 
 #include <assert.h>
 #include <string.h>
-
-static constexpr Domain icy_metadata_domain("icy_metadata");
 
 void
 IcyMetaDataParser::Reset() noexcept
@@ -65,18 +62,16 @@ IcyMetaDataParser::Data(size_t length) noexcept
 }
 
 static void
-icy_add_item(TagBuilder &tag, TagType type, const char *value) noexcept
+icy_add_item(TagBuilder &tag, TagType type, StringView value) noexcept
 {
-	size_t length = strlen(value);
-
-	if (length >= 2 && value[0] == '\'' && value[length - 1] == '\'') {
+	if (value.size >= 2 && value.front() == '\'' && value.back() == '\'') {
 		/* strip the single quotes */
-		++value;
-		length -= 2;
+		++value.data;
+		value.size -= 2;
 	}
 
-	if (length > 0)
-		tag.AddItem(type, {value, length});
+	if (value.size > 0)
+		tag.AddItem(type, value);
 }
 
 static void
@@ -85,9 +80,6 @@ icy_parse_tag_item(TagBuilder &tag,
 {
 	if (strcmp(name, "StreamTitle") == 0)
 		icy_add_item(tag, TAG_TITLE, value);
-	else
-		FormatDebug(icy_metadata_domain,
-			    "unknown icy-tag: '%s'", name);
 }
 
 /**

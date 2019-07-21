@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -31,8 +31,6 @@
 #include "fs/io/FileOutputStream.hxx"
 #include "fs/io/BufferedOutputStream.hxx"
 #include "util/UriUtil.hxx"
-
-#include <exception>
 
 static void
 playlist_print_path(BufferedOutputStream &os, const Path path)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,7 +20,6 @@
 #include "config.h"
 #include "JackOutputPlugin.hxx"
 #include "../OutputAPI.hxx"
-#include "config/Domain.hxx"
 #include "util/ScopeExit.hxx"
 #include "util/ConstBuffer.hxx"
 #include "util/IterableSplitString.hxx"
@@ -83,7 +82,7 @@ struct JackOutput final : AudioOutput {
 	 * Connect the JACK client and performs some basic setup
 	 * (e.g. register callbacks).
 	 *
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void Connect();
 
@@ -97,7 +96,7 @@ struct JackOutput final : AudioOutput {
 	}
 
 	/**
-	 * Throws #std::runtime_error on error.
+	 * Throws on error.
 	 */
 	void Start();
 	void Stop() noexcept;
@@ -141,7 +140,7 @@ struct JackOutput final : AudioOutput {
 static constexpr Domain jack_output_domain("jack_output");
 
 /**
- * Throws #std::runtime_error on error.
+ * Throws on error.
  */
 static unsigned
 parse_port_list(const char *source, std::string dest[])

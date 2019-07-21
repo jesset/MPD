@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -24,15 +24,13 @@
 #include "AudioFormat.hxx"
 #include "util/ConstBuffer.hxx"
 
-#include <stdexcept>
-
 class VolumeFilter final : public Filter {
 	PcmVolume pv;
 
 public:
 	explicit VolumeFilter(const AudioFormat &audio_format)
 		:Filter(audio_format) {
-		pv.Open(out_audio_format.format);
+		out_audio_format.format = pv.Open(out_audio_format.format);
 	}
 
 	unsigned GetVolume() const noexcept {

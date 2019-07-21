@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -77,7 +77,7 @@ public:
 		 mixer(_mixer), base(_base) {
 		info.Clear();
 
-		pv.Open(out_audio_format.format);
+		out_audio_format.format = pv.Open(out_audio_format.format);
 	}
 
 	void SetInfo(const ReplayGainInfo *_info) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2003-2018 The Music Player Daemon Project
+ * Copyright 2003-2019 The Music Player Daemon Project
  * http://www.musicpd.org
  *
  * This program is free software; you can redistribute it and/or modify
@@ -36,7 +36,7 @@ TestVolume(G g=G())
 	typedef typename Traits::value_type value_type;
 
 	PcmVolume pv;
-	pv.Open(F);
+	EXPECT_EQ(pv.Open(F), F);
 
 	constexpr size_t N = 509;
 	static value_type zero[N];
