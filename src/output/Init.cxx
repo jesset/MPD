@@ -105,14 +105,14 @@ audio_output_mixer_type(const ConfigBlock &block,
 static Mixer *
 audio_output_load_mixer(EventLoop &event_loop, FilteredAudioOutput &ao,
 			const ConfigBlock &block,
-			const AudioOutputDefaults &defaults,
+			const MixerType mixer_type,
 			const MixerPlugin *plugin,
 			PreparedFilter &filter_chain,
 			MixerListener &listener)
 {
 	Mixer *mixer;
 
-	switch (audio_output_mixer_type(block, defaults)) {
+	switch (mixer_type) {
 	case MixerType::NONE:
 		return nullptr;
 
@@ -205,18 +205,26 @@ FilteredAudioOutput::Setup(EventLoop &event_loop,
 	    !config_audio_format.IsFullyDefined())
 		throw std::runtime_error("Need full audio format specification");
 
+	const auto mixer_type = audio_output_mixer_type(block, defaults);
+
 	/* create the replay_gain filter */
 
 	const char *replay_gain_handler =
 		block.GetBlockValue("replay_gain_handler", "software");
 
 	if (strcmp(replay_gain_handler, "none") != 0) {
+		/* when using software volume, we lose quality by
+		   invoking PcmVolume::Apply() twice; to avoid losing
+		   too much precision, we allow the ReplayGainFilter
+		   to convert 16 bit to 24 bit */
+		const bool allow_convert = mixer_type == MixerType::SOFTWARE;
+
 		prepared_replay_gain_filter =
-			NewReplayGainFilter(replay_gain_config);
+			NewReplayGainFilter(replay_gain_config, allow_convert);
 		assert(prepared_replay_gain_filter != nullptr);
 
 		prepared_other_replay_gain_filter =
-			NewReplayGainFilter(replay_gain_config);
+			NewReplayGainFilter(replay_gain_config, allow_convert);
 		assert(prepared_other_replay_gain_filter != nullptr);
 	}
 
@@ -224,7 +232,7 @@ FilteredAudioOutput::Setup(EventLoop &event_loop,
 
 	try {
 		mixer = audio_output_load_mixer(event_loop, *this, block,
-						defaults,
+						mixer_type,
 						mixer_plugin,
 						*prepared_filter,
 						mixer_listener);

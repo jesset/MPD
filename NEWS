@@ -11,6 +11,34 @@ ver 0.22 (not yet released)
 * filter
   - ffmpeg: new plugin based on FFmpeg's libavfilter library
   - hdcd: new plugin based on FFmpeg's "af_hdcd" for HDCD playback
+  - volume: convert S16 to S24 to preserve quality and reduce dithering noise
+* output
+  - jack: add option "auto_destination_ports"
+  - jack: report error details
+  - pulse: add option "media_role"
+* switch to C++17
+  - GCC 7 or clang 4 (or newer) recommended
+
+ver 0.21.13 (2019/08/06)
+* input
+  - cdio_paranoia: require libcdio-paranoia 10.2+0.93+1
+* decoder
+  - mad: fix crackling sound (0.21.12 regression)
+* output
+  - jack: improved Windows compatibility
+
+ver 0.21.12 (2019/08/03)
+* decoder
+  - mad: update bit rate after seeking
+  - mad: fix several bugs preventing the plugin from decoding the last frame
+  - opus: ignore case in replay gain tag names
+  - opus, vorbis: decode the "end of stream" packet
+* output
+  - jack: fix mono-to-stereo conversion
+* player
+  - don't restart unseekable song after failed seek attempt
+* Windows
+  - support backslash in relative URIs loaded from playlists
 
 ver 0.21.11 (2019/07/03)
 * input
