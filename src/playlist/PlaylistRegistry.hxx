@@ -25,12 +25,13 @@
 #include "util/Compiler.h"
 
 struct ConfigData;
+struct PlaylistPlugin;
 class SongEnumerator;
 
-extern const struct playlist_plugin *const playlist_plugins[];
+extern const PlaylistPlugin *const playlist_plugins[];
 
 #define playlist_plugins_for_each(plugin) \
-	for (const struct playlist_plugin *plugin, \
+	for (const PlaylistPlugin *plugin, \
 		*const*playlist_plugin_iterator = &playlist_plugins[0]; \
 		(plugin = *playlist_plugin_iterator) != nullptr; \
 		++playlist_plugin_iterator)
@@ -77,12 +78,19 @@ playlist_list_open_stream_suffix(InputStreamPtr &&is, const char *suffix);
 std::unique_ptr<SongEnumerator>
 playlist_list_open_stream(InputStreamPtr &&is, const char *uri);
 
+gcc_pure
+const PlaylistPlugin *
+FindPlaylistPluginBySuffix(const char *suffix) noexcept;
+
 /**
  * Determines if there is a playlist plugin which can handle the
  * specified file name suffix.
  */
 gcc_pure
-bool
-playlist_suffix_supported(const char *suffix) noexcept;
+inline bool
+playlist_suffix_supported(const char *suffix) noexcept
+{
+	return FindPlaylistPluginBySuffix(suffix) != nullptr;
+}
 
 #endif

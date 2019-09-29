@@ -19,6 +19,7 @@
 
 #include "OpusTags.hxx"
 #include "OpusReader.hxx"
+#include "lib/xiph/VorbisPicture.hxx"
 #include "lib/xiph/XiphTags.hxx"
 #include "tag/Handler.hxx"
 #include "tag/ParseName.hxx"
@@ -45,6 +46,14 @@ ScanOneOpusTag(StringView name, StringView value,
 	       ReplayGainInfo *rgi,
 	       TagHandler &handler) noexcept
 {
+	if (handler.WantPicture() &&
+	    name.EqualsIgnoreCase("METADATA_BLOCK_PICTURE"))
+		return ScanVorbisPicture(value, handler);
+
+	if (value.size >= 4096)
+		/* ignore large values */
+		return;
+
 	if (rgi != nullptr && name.EqualsIgnoreCase("R128_TRACK_GAIN")) {
 		/* R128_TRACK_GAIN is a Q7.8 fixed point number in
 		   dB */
@@ -96,9 +105,6 @@ ScanOpusTags(const void *data, size_t size,
 		const auto s = r.ReadString();
 		if (s == nullptr)
 			return false;
-
-		if (s.size >= 4096)
-			continue;
 
 		const auto split = s.Split('=');
 		if (split.first.empty() || split.second.IsNull())

@@ -20,16 +20,12 @@
 #include "NullMixerListener.hxx"
 #include "mixer/MixerControl.hxx"
 #include "mixer/MixerList.hxx"
-#include "filter/FilterRegistry.hxx"
-#include "pcm/Volume.hxx"
-#include "Main.hxx"
+#include "filter/Registry.hxx"
 #include "event/Loop.hxx"
 #include "config/Block.hxx"
 #include "util/PrintException.hxx"
 
 #include <assert.h>
-#include <string.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 const FilterPlugin *

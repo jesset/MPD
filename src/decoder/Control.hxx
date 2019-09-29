@@ -111,13 +111,6 @@ private:
 	bool quit;
 
 public:
-	/**
-	 * Is the client currently waiting for the DecoderThread?  If
-	 * false, the DecoderThread may omit invoking Cond::signal(),
-	 * reducing the number of system calls.
-	 */
-	bool client_is_waiting = false;
-
 	bool seek_error;
 	bool seekable;
 	SongTime seek_time;
@@ -222,7 +215,9 @@ public:
 	 *
 	 * Caller must hold the lock.
 	 */
-	void WaitForDecoder(std::unique_lock<Mutex> &lock) noexcept;
+	void WaitForDecoder(std::unique_lock<Mutex> &lock) noexcept {
+		client_cond.wait(lock);
+	}
 
 	bool IsIdle() const noexcept {
 		return state == DecoderState::STOP ||

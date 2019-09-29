@@ -54,7 +54,7 @@ public:
 	/**
 	 * Filters a block of PCM data.
 	 *
-	 * Throws std::runtime_error on error.
+	 * Throws on error.
 	 *
 	 * @param src the input buffer
 	 * @return the destination buffer on success (will be
@@ -66,6 +66,8 @@ public:
 	/**
 	 * Flush pending data and return it.  This should be called
 	 * repeatedly until it returns nullptr.
+	 *
+	 * Throws on error.
 	 */
 	virtual ConstBuffer<void> Flush();
 };

@@ -406,15 +406,6 @@ plugin should be enabled only if you have a bit-perfect playback path
 to a DSD-capable DAC; for everybody else, playing back the ALAC copy
 of the file is better.
 
-.. list-table::
-   :widths: 20 80
-   :header-rows: 1
-
-   * - Setting
-     - Description
-   * - **gapless yes|no**
-     - This specifies whether to support gapless playback of MP3s which have the necessary headers. Useful if your MP3s have headers with incorrect information. If you have such MP3s, it is highly recommended that you fix them using `vbrfix <http://www.willwap.co.uk/Programs/vbrfix.php>`_ instead of disabling gapless MP3 playback. The default is to support gapless MP3 playback.
-
 mad
 ---
 
@@ -485,6 +476,8 @@ C64 SID decoder based on `libsidplayfp <https://sourceforge.net/projects/sidplay
      - Location of your songlengths file, as distributed with the HVSC. The sidplay plugin checks this for matching MD5 fingerprints. See http://www.hvsc.c64.org/download/C64Music/DOCUMENTS/Songlengths.faq.
    * - **default_songlength SECONDS**
      - This is the default playing time in seconds for songs not in the songlength database, or in case you're not using a database. A value of 0 means play indefinitely.
+   * - **default_genre GENRE**
+     - Optional default genre for SID songs.
    * - **filter yes|no**
      - Turns the SID filter emulation on or off.
    * - **kernal**

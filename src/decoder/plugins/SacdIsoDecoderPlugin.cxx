@@ -40,7 +40,7 @@
 #include "util/StringView.hxx"
 #include "util/FormatString.hxx"
 #include "util/AllocatedString.hxx"
-#include "util/UriUtil.hxx"
+#include "util/UriExtract.hxx"
 #include "util/Domain.hxx"
 #include "Log.hxx"
 
@@ -343,7 +343,7 @@ sacdiso_file_decode(DecoderClient &client, Path path_fs) {
 					if (param_lsbitfirst) {
 						bit_reverse_buffer(dsd_data, dsd_data + dsd_size);
 					}
-					cmd = client.SubmitData(nullptr, dsd_data, dsd_size, dsd_samplerate / 1000);
+					cmd = client.SubmitData(nullptr, dsd_data, dsd_size, 8 * dst_size / 1000);
 				}
 			}
 		}
@@ -360,7 +360,7 @@ sacdiso_file_decode(DecoderClient &client, Path path_fs) {
 					if (param_lsbitfirst) {
 						bit_reverse_buffer(dsd_data, dsd_data + dsd_size);
 					}
-					cmd = client.SubmitData(nullptr, dsd_data, dsd_size, dsd_samplerate / 1000);
+					cmd = client.SubmitData(nullptr, dsd_data, dsd_size, 0);
 					if (cmd == DecoderCommand::STOP || cmd == DecoderCommand::SEEK) {
 						break;
 					}

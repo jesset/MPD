@@ -107,7 +107,8 @@ class AudioOutputSource {
 	const MusicChunk *current_chunk = nullptr;
 
 	/**
-	 * The #Tag to be processed by the #AudioOutput.
+	 * The #Tag to be processed by the #AudioOutput.  It is owned
+	 * by #current_chunk (MusicChunk::tag).
 	 */
 	const Tag *pending_tag;
 
@@ -211,6 +212,12 @@ private:
 				       unsigned *replay_gain_serial_p);
 
 	ConstBuffer<void> FilterChunk(const MusicChunk &chunk);
+
+	void DropCurrentChunk() noexcept {
+		assert(current_chunk != nullptr);
+
+		pipe.Consume(*std::exchange(current_chunk, nullptr));
+	}
 };
 
 #endif

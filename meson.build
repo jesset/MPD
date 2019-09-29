@@ -298,6 +298,7 @@ sources = [
   'src/TagSave.cxx',
   'src/TagFile.cxx',
   'src/TagStream.cxx',
+  'src/TagAny.cxx',
   'src/TimePrint.cxx',
   'src/mixer/Volume.cxx',
   'src/PlaylistFile.cxx',
@@ -354,6 +355,8 @@ subdir('src/lib/sqlite')
 subdir('src/lib/systemd')
 subdir('src/lib/upnp')
 subdir('src/lib/yajl')
+
+subdir('src/lib/crypto')
 
 subdir('src/fs')
 subdir('src/config')

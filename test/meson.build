@@ -37,6 +37,9 @@ test('TestUtil', executable(
   'TestDivideString.cxx',
   'TestMimeType.cxx',
   'TestSplitString.cxx',
+  'TestUriExtract.cxx',
+  'TestUriQueryParser.cxx',
+  'TestUriRelative.cxx',
   'TestUriUtil.cxx',
   'test_byte_reverse.cxx',
   include_directories: inc,
@@ -45,6 +48,19 @@ test('TestUtil', executable(
     gtest_dep,
   ],
 ))
+
+test(
+  'TestTime',
+  executable(
+    'TestTime',
+    'TestISO8601.cxx',
+    include_directories: inc,
+    dependencies: [
+      time_dep,
+      gtest_dep,
+    ],
+  ),
+)
 
 test('TestRewindInputStream', executable(
   'TestRewindInputStream',
@@ -333,6 +349,7 @@ if curl_dep.found()
     '../src/LogBackend.cxx',
     include_directories: inc,
     dependencies: [
+      icu_dep,
       tag_dep,
       gtest_dep,
     ],

@@ -40,7 +40,7 @@
 #include "util/StringView.hxx"
 #include "util/FormatString.hxx"
 #include "util/AllocatedString.hxx"
-#include "util/UriUtil.hxx"
+#include "util/UriExtract.hxx"
 #include "util/Domain.hxx"
 #include "Log.hxx"
 
@@ -315,7 +315,7 @@ dvdaiso_file_decode(DecoderClient &client, Path path_fs) {
 		size_t pcm_size = pcm_data.size();
 		if (dvda_reader->read_frame(pcm_data.data(), &pcm_size)) {
 			if (pcm_size > 0) {
-				cmd = client.SubmitData(nullptr, pcm_data.data(), pcm_size, samplerate / 1000);
+				cmd = client.SubmitData(nullptr, pcm_data.data(), pcm_size, channels * samplerate / 1000);
 				if (cmd == DecoderCommand::STOP) {
 					break;
 				}

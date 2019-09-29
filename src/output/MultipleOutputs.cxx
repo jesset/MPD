@@ -27,6 +27,7 @@
 #include "config/Data.hxx"
 #include "config/Option.hxx"
 #include "util/RuntimeError.hxx"
+#include "util/StringAPI.hxx"
 
 #include <stdexcept>
 
@@ -97,7 +98,7 @@ MultipleOutputs::Configure(EventLoop &event_loop,
 						mixer_listener,
 						client, block, defaults,
 						&filter_factory);
-		if (FindByName(output->GetName()) != nullptr)
+		if (HasName(output->GetName()))
 			throw FormatRuntimeError("output devices with identical "
 						 "names: %s", output->GetName());
 
@@ -135,7 +136,7 @@ AudioOutputControl *
 MultipleOutputs::FindByName(const char *name) noexcept
 {
 	for (const auto &i : outputs)
-		if (strcmp(i->GetName(), name) == 0)
+		if (StringIsEqual(i->GetName(), name))
 			return i.get();
 
 	return nullptr;
@@ -171,7 +172,7 @@ MultipleOutputs::Update(bool force) noexcept
 {
 	bool ret = false;
 
-	if (!input_audio_format.IsDefined())
+	if (!IsOpen())
 		return false;
 
 	for (const auto &ao : outputs)

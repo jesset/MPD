@@ -20,12 +20,14 @@
 #ifndef MPD_TAG_MIXRAMP_HXX
 #define MPD_TAG_MIXRAMP_HXX
 
+struct StringView;
 class MixRampInfo;
 
 bool
-ParseMixRampTag(MixRampInfo &info, const char *name, const char *value);
+ParseMixRampTag(MixRampInfo &info,
+		const char *name, const char *value) noexcept;
 
 bool
-ParseMixRampVorbis(MixRampInfo &info, const char *entry);
+ParseMixRampVorbis(MixRampInfo &info, StringView entry) noexcept;
 
 #endif

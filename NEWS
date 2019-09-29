@@ -2,12 +2,24 @@ ver 0.22 (not yet released)
 * protocol
   - "findadd"/"searchadd"/"searchaddpl" support the "sort" and
     "window" parameters
+  - add command "readpicture" to download embedded pictures
+  - relax the ISO 8601 parser: allow omitting the time of day and the "Z"
+    suffix
 * tags
   - new tags "Grouping" (for ID3 "TIT1") and "Work"
 * input
+  - curl: support "charset" parameter in URI fragment
   - ffmpeg: allow partial reads
 * archive
   - iso9660: support seeking
+* playlist
+  - cue: integrate contents in database
+* decoder
+  - mad: remove option "gapless", always do gapless
+  - sidplay: add option "default_genre"
+  - sidplay: map SID name field to "Album" tag
+* playlist
+  - flac: support reading CUE sheets from remote FLAC files
 * filter
   - ffmpeg: new plugin based on FFmpeg's libavfilter library
   - hdcd: new plugin based on FFmpeg's "af_hdcd" for HDCD playback
@@ -18,6 +30,24 @@ ver 0.22 (not yet released)
   - pulse: add option "media_role"
 * switch to C++17
   - GCC 7 or clang 4 (or newer) recommended
+
+ver 0.21.15 (2019/09/25)
+* decoder
+  - dsdiff, dsf: fix displayed bit rate
+  - mpcdec: fix bogus ReplayGain values
+* output
+  - solaris: fix build with glibc 2.30
+
+ver 0.21.14 (2019/08/21)
+* decoder
+  - sidplay: show track durations in database
+  - sidplay: convert tag values from Windows-1252 charset
+  - sidplay: strip text from "Date" tag
+* player
+  - fix crash after song change
+  - fix seek position after restarting the decoder
+* protocol
+  - include command name in error responses
 
 ver 0.21.13 (2019/08/06)
 * input
