@@ -201,7 +201,12 @@ read_stream_art(Response &r, const char *uri, size_t offset)
 
 	InputStreamPtr is = find_stream_art(art_directory.c_str(), mutex);
 
-	if (is == nullptr) {
+        if (is == nullptr) {
+                art_directory = PathTraitsUTF8::GetParent(art_directory.c_str());
+                is = find_stream_art(art_directory.c_str(), mutex);
+        }
+
+        if (is == nullptr) {
 		r.Error(ACK_ERROR_NO_EXIST, "No file exists");
 		return CommandResult::ERROR;
 	}
