@@ -23,6 +23,8 @@
 #include <stdarg.h>
 //#include "stddef.h"
 #include "dst_decoder_mpd.h"
+#include <sched.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -70,6 +72,9 @@ int dst_decoder_t::get_slot_nr() {
 }
 
 int dst_decoder_t::init(int channel_count, int samplerate, int framerate) {
+	unsigned num_cpus = std::thread::hardware_concurrency();
+	unsigned num_threads = 0;
+
 	for (auto& slot : frame_slots)	{
 		if (slot.D.init(channel_count, (samplerate / 44100) / (framerate / 75)) == 0) {
 			slot.channel_count = channel_count;
@@ -78,6 +83,13 @@ int dst_decoder_t::init(int channel_count, int samplerate, int framerate) {
 			slot.dsd_size = (size_t)(samplerate / 8 / framerate * channel_count);
 			slot.run_slot = true;
 			slot.run_thread = thread(dst_run_thread, &slot);
+
+                        cpu_set_t cpuset;
+                        CPU_ZERO(&cpuset);
+                        CPU_SET(num_threads % num_cpus, &cpuset);
+                        num_threads ++;
+                        pthread_setaffinity_np(slot.run_thread.native_handle(), sizeof(cpu_set_t), &cpuset);
+
 			if (!slot.run_thread.joinable()) {
 				LOG(LOG_ERROR, ("Could not start decoder thread"));
 				return -1;
