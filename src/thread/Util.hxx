@@ -44,4 +44,12 @@ SetThreadIdlePriority() noexcept;
 void
 SetThreadRealtime();
 
+/**
+ * Set the current thread's cpu affinity to specific cpu num.
+ *
+ * Throws std::system_error on error.
+ */
+void
+SetThreadCpu();
+
 #endif

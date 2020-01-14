@@ -74,6 +74,15 @@ linux_sched_setscheduler(pid_t pid, int sched,
 	return syscall(__NR_sched_setscheduler, pid, sched, param);
 }
 
+/**
+ * add by @jesset (tcx)
+ */
+static int
+linux_sched_setaffinity(pid_t pid, size_t cpusetsize, const cpu_set_t *cpuset) noexcept
+{
+	return syscall(__NR_sched_setaffinity, pid, cpusetsize, cpuset);
+}
+
 #endif
 
 void
@@ -111,4 +120,17 @@ SetThreadRealtime()
 	if (linux_sched_setscheduler(0, policy, &sched_param) < 0)
 		throw MakeErrno("sched_setscheduler failed");
 #endif	// __linux__
+};
+
+void
+SetThreadCpu()
+{
+#ifdef __linux__
+	cpu_set_t cpuset;
+	CPU_ZERO(&cpuset);
+	CPU_SET(3, &cpuset);
+
+	if (linux_sched_setaffinity(0, sizeof(cpu_set_t), &cpuset) < 0)
+		throw MakeErrno("sched_setaffinity failed");
+#endif // __linux__
 };

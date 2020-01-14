@@ -410,6 +410,13 @@ AudioOutputControl::Task() noexcept
 		    "OutputThread could not get realtime scheduling, continuing anyway");
 	}
 
+    try {
+        SetThreadCpu();
+    } catch (...) {
+        LogError(std::current_exception(),
+             "OutputThread could not set cpu on 3, continuing anyway");
+    }
+
 	SetThreadTimerSlack(std::chrono::microseconds(100));
 
 	std::unique_lock<Mutex> lock(mutex);
